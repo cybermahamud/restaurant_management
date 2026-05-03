@@ -1,0 +1,59 @@
+<!-- templates/orders/waste_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Wastage Records{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-trash-alt"></i> Wastage Records</h4>
+        {% if user.role == 'staff' or user.role == 'manager' or user.role == 'admin' %}
+        <a href="{% url 'orders:record_waste' %}" class="btn btn-warning btn-sm float-end">
+            <i class="fas fa-plus"></i> Record Waste
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="wasteTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Restaurant</th>
+                        <th>Menu Item</th>
+                        <th>Quantity</th>
+                        <th>Reason</th>
+                        <th>Recorded By</th>
+                        <th>Estimated Loss</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for waste in wastes %}
+                    <tr>
+                        <td>{{ waste.recorded_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ waste.restaurant.name }}</td>
+                        <td>{{ waste.menu_item.name }}</td>
+                        <td>{{ waste.quantity }}</td>
+                        <td>{{ waste.reason|truncatewords:10 }}</td>
+                        <td>{{ waste.recorded_by.get_full_name|default:waste.recorded_by.username }}</td>
+                        <td class="text-danger">-${{ waste.menu_item.cost|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No waste records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('#wasteTable').DataTable({
+            "order": [[0, "desc"]],
+            "pageLength": 20
+        });
+    });
+</script>
+{% endblock %}

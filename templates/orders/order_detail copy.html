@@ -1,0 +1,101 @@
+<!-- templates/orders/order_detail.html -->
+{% extends 'base/base.html' %}
+{% block title %}Order #{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<style>
+    .timeline-step { width: 50px; height: 50px; border-radius: 50%; background: #e9ecef; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; color: #6c757d; }
+    .timeline-step.completed { background: #28a745; color: white; }
+</style>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-receipt"></i> Order #{{ order.order_number }}</h5>
+            </div>
+            <div class="card-body">
+                <!-- Timeline -->
+                <div class="timeline mb-4">
+                    <div class="row text-center">
+                        <div class="col-3"><div class="timeline-step completed"><i class="fas fa-check-circle fa-2x"></i></div><small>Placed</small><br><small class="text-muted">{{ order.created_at|date:"H:i" }}</small></div>
+                        <div class="col-3"><div class="timeline-step {% if order.status != 'pending' %}completed{% endif %}"><i class="fas fa-fire fa-2x"></i></div><small>Preparing</small></div>
+                        <div class="col-3"><div class="timeline-step {% if order.status == 'ready' or order.status == 'completed' %}completed{% endif %}"><i class="fas fa-check fa-2x"></i></div><small>Ready</small></div>
+                        <div class="col-3"><div class="timeline-step {% if order.status == 'completed' %}completed{% endif %}"><i class="fas fa-flag-checkered fa-2x"></i></div><small>Completed</small></div>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6>Order Info</h6>
+                        <table class="table table-sm">
+                            <tr><th>Table:</th><td>{% if order.table %}Table {{ order.table.table_number }}{% else %}Takeaway{% endif %}</td></tr>
+                            <tr><th>Type:</th><td>{{ order.get_order_type_display }}</td></tr>
+                            <tr><th>Server:</th><td>{{ order.staff.get_full_name|default:order.staff.username }}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Payment</h6>
+                        <table class="table table-sm">
+                            <tr><th>Status:</th><td><span class="badge bg-{% if order.payment_status == 'paid' %}success{% else %}danger{% endif %}">{{ order.get_payment_status_display }}</span></td></tr>
+                            <tr><th>Total:</th><td>${{ order.total_amount|floatformat:2 }}</td></tr>
+                            <tr><th>Order Status:</th>
+                                <td><select id="orderStatusSelect" class="form-select form-select-sm">
+                                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="preparing" {% if order.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                                    <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Ready</option>
+                                    <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Completed</option>
+                                    <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                </select>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <h6>Items</h6>
+                <table class="table table-bordered">
+                    <thead class="table-light"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                    <tbody>
+                        {% for item in order.items.all %}
+                        <tr><td>{{ item.menu_item.name }}</td><td>{{ item.quantity }}</td><td>${{ item.unit_price|floatformat:2 }}</td><td>${{ item.total_price|floatformat:2 }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr><td colspan="3" class="text-end">Subtotal:</td><td>${{ order.subtotal|floatformat:2 }}</td></tr>
+                        {% if order.discount_amount > 0 %}<tr class="text-success"><td colspan="3" class="text-end">Discount:</td><td>-${{ order.discount_amount|floatformat:2 }}</td></tr>{% endif %}
+                        <tr><td colspan="3" class="text-end">Tax (5%):</td><td>${{ order.tax_amount|floatformat:2 }}</td></tr>
+                        <tr class="table-success"><td colspan="3" class="text-end"><strong>Total:</strong></td><td><strong>${{ order.total_amount|floatformat:2 }}</strong></td></tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white"><h5 class="mb-0">Actions</h5></div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'orders:edit_order' order.id %}" class="btn btn-warning"><i class="fas fa-edit"></i> Edit Order</a>
+                    <a href="{% url 'orders:kitchen_print' order.id %}" class="btn btn-secondary" target="_blank"><i class="fas fa-print"></i> Print Kitchen</a>
+                    {% if order.payment_status != 'paid' %}
+                    <a href="{% url 'orders:payment_page' order.id %}" class="btn btn-success"><i class="fas fa-money-bill"></i> Process Payment</a>
+                    {% endif %}
+                    <a href="{% url 'orders:print_bill' order.id %}" class="btn btn-primary" target="_blank"><i class="fas fa-receipt"></i> Print Bill</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $('#orderStatusSelect').change(function() {
+        $.ajax({
+            url: '/orders/{{ order.id }}/update-status/',
+            method: 'POST',
+            data: { status: $(this).val(), csrfmiddlewaretoken: '{{ csrf_token }}' },
+            success: function() { location.reload(); }
+        });
+    });
+</script>
+{% endblock %}

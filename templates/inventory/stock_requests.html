@@ -1,0 +1,286 @@
+<!-- templates/inventory/stock_requests.html -->
+{% extends 'base/base.html' %}
+{% block title %}Stock Requests{% endblock %}
+
+{% block content %}
+<style>
+    .request-card {
+        transition: all 0.2s;
+        border-left: 4px solid;
+    }
+    .request-card:hover { 
+        transform: translateX(5px); 
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+    }
+    .status-pending { border-left-color: #ffc107; }
+    .status-approved { border-left-color: #17a2b8; }
+    .status-fulfilled { border-left-color: #28a745; }
+    .status-rejected { border-left-color: #dc3545; }
+    
+    .badge {
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+    
+    .table th, .table td {
+        vertical-align: middle;
+        padding: 12px;
+    }
+</style>
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="fas fa-clipboard-list"></i> Stock Requests from Restaurants</h4>
+    </div>
+    <div class="card-body">
+        <!-- Filter Section -->
+        <div class="filter-section mb-4">
+            <form method="get" class="row">
+                <div class="col-md-3">
+                    <select name="status" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Status</option>
+                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="fulfilled" {% if status_filter == 'fulfilled' %}selected{% endif %}>Fulfilled</option>
+                        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="restaurant" class="form-select" onchange="this.form.submit()">
+                        <option value="">All Restaurants</option>
+                        {% for restaurant in restaurants %}
+                        <option value="{{ restaurant.id }}" {% if restaurant_filter == restaurant.id|stringformat:"s" %}selected{% endif %}>
+                            {{ restaurant.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Filter
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'inventory:stock_requests_list' %}" class="btn btn-secondary w-100">
+                        <i class="fas fa-undo"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date</th>
+                        <th>Restaurant</th>
+                        <th>Menu Item</th>
+                        <th>Quantity</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in stock_requests %}
+                    <tr class="request-card status-{{ request.status }}">
+                        <td>{{ request.requested_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ request.restaurant.name }}</td>
+                        <td>{{ request.menu_item.name }}</td>
+                        <td>{{ request.quantity_requested }}</td>
+                        <td>
+                            {% if 'URGENT' in request.notes|upper %}
+                            <span class="badge bg-danger">Urgent</span>
+                            {% elif 'HIGH' in request.notes|upper %}
+                            <span class="badge bg-warning">High</span>
+                            {% else %}
+                            <span class="badge bg-info">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if request.status == 'pending' %}
+                            <span class="badge bg-warning">Pending</span>
+                            {% elif request.status == 'approved' %}
+                            <span class="badge bg-info">Approved</span>
+                            {% elif request.status == 'fulfilled' %}
+                            <span class="badge bg-success">Fulfilled</span>
+                            {% else %}
+                            <span class="badge bg-danger">Rejected</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ request.notes|truncatewords:10|default:'-' }}</td>
+                        <td>
+                            {% if request.status == 'pending' %}
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-success" onclick="processRequest('{{ request.id }}', 'approve')" title="Approve">
+                                    <i class="fas fa-check"></i> Approve
+                                </button>
+                                <button class="btn btn-danger" onclick="processRequest('{{ request.id }}', 'reject')" title="Reject">
+                                    <i class="fas fa-times"></i> Reject
+                                </button>
+                            </div>
+                            {% elif request.status == 'approved' %}
+                            <button class="btn btn-primary btn-sm" onclick="fulfillRequest('{{ request.id }}')" title="Fulfill">
+                                <i class="fas fa-truck"></i> Fulfill
+                            </button>
+                            {% elif request.status == 'fulfilled' %}
+                            <span class="text-success">
+                                <i class="fas fa-check-circle"></i> Completed
+                            </span>
+                            {% else %}
+                            <span class="text-muted">No action</span>
+                            {% endif %}
+                         </td>
+                     </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted mb-0">No stock requests found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if stock_requests.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if stock_requests.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ stock_requests.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if restaurant_filter %}&restaurant={{ restaurant_filter }}{% endif %}">
+                        Previous
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in stock_requests.paginator.page_range %}
+                <li class="page-item {% if stock_requests.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if restaurant_filter %}&restaurant={{ restaurant_filter }}{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                {% if stock_requests.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ stock_requests.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if restaurant_filter %}&restaurant={{ restaurant_filter }}{% endif %}">
+                        Next
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Include SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function processRequest(requestId, action) {
+    const title = action === 'approve' ? 'Approve Request?' : 'Reject Request?';
+    const text = action === 'approve' ? 'Are you sure you want to approve this stock request?' : 'Are you sure you want to reject this stock request?';
+    const icon = 'question';
+    const confirmButtonColor = action === 'approve' ? '#28a745' : '#dc3545';
+    
+    Swal.fire({
+        title: title,
+        text: text,
+        icon: icon,
+        showCancelButton: true,
+        confirmButtonColor: confirmButtonColor,
+        confirmButtonText: 'Yes, proceed!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Use fetch API instead of jQuery
+            fetch(`/inventory/stock-requests/${requestId}/process/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `action=${action}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Success!', data.message || `Request ${action}d successfully`, 'success')
+                        .then(() => location.reload());
+                } else {
+                    Swal.fire('Error!', data.error || 'Failed to process request', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error!', 'Network error occurred. Please try again.', 'error');
+            });
+        }
+    });
+}
+
+function fulfillRequest(requestId) {
+    Swal.fire({
+        title: 'Fulfill Request?',
+        text: 'Transfer stock to restaurant? This will reduce inventory stock.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        confirmButtonText: 'Yes, fulfill!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Use fetch API instead of jQuery
+            fetch(`/inventory/stock-requests/${requestId}/fulfill/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Success!', data.message || 'Request fulfilled successfully', 'success')
+                        .then(() => location.reload());
+                } else {
+                    Swal.fire('Error!', data.error || 'Failed to fulfill request', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error!', 'Network error occurred. Please try again.', 'error');
+            });
+        }
+    });
+}
+</script>
+
+<style>
+.filter-section {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}

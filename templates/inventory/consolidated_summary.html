@@ -1,0 +1,166 @@
+<!-- templates/inventory/consolidated_summary.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Consolidated Summary{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-line"></i> Consolidated Summary - {{ selected_date|date:"Y-m-d" }}</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row mb-3">
+                <div class="col-md-3">
+                    <input type="date" name="date" class="form-control" value="{{ selected_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary">Load</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{% url 'inventory:all_requests_list' %}" class="btn btn-secondary">Back to Requests</a>
+                </div>
+            </form>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Menu Item</th>
+                            <th>Unit</th>
+                            <th>Total Requested</th>
+                            <th>Restaurants</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in consolidated %}
+                        <tr>
+                            <td><strong>{{ item.menu_item.name }}</strong></td>
+                            <td>{{ item.menu_item.unit|default:"pcs" }}</td>
+                            <td>{{ item.total_requested|floatformat:0 }}</td>
+                            <td>
+                                <ul class="mb-0">
+                                {% for r in item.restaurants %}
+                                    <li><strong>{{ r.name }}</strong>: {{ r.quantity|floatformat:0 }}</li>
+                                {% endfor %}
+                                </ul>
+                            </td>
+                            <td>
+                                {% if item.menu_item.id in existing_batch_ids %}
+                                    <span class="text-success">
+                                        <i class="fas fa-check-circle"></i> Batch Already Created
+                                    </span>
+                                {% else %}
+                                    <button type="button" class="btn btn-sm btn-primary generate-batch" 
+                                            data-item-id="{{ item.menu_item.id }}"
+                                            data-item-name="{{ item.menu_item.name }}"
+                                            data-total-requested="{{ item.total_requested|floatformat:0 }}">
+                                        <i class="fas fa-industry"></i> Generate Batch
+                                    </button>
+                                {% endif %}
+                            </td>
+                         </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No requests for selected date</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-3 text-center">
+                <a href="{% url 'inventory:production_batches' %}" class="btn btn-info">
+                    <i class="fas fa-list"></i> View All Production Batches
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Batch Modal -->
+<div class="modal fade" id="generateBatchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-industry"></i> Generate Production Batch</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'inventory:generate_production_batch' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" name="menu_item_id" id="batchMenuItemId">
+                    <div class="mb-3">
+                        <label class="form-label">Menu Item</label>
+                        <input type="text" id="batchMenuItemName" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Total Requested</label>
+                        <input type="text" id="batchTotalRequested" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Batch Number <span class="text-danger">*</span></label>
+                        <input type="text" name="batch_number" id="batchNumber" class="form-control" required>
+                        <small class="text-muted">Auto-generated: BATCH-{date}-{item_code}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity to Produce <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity_produced" id="batchQuantity" class="form-control" step="1" required>
+                        <small class="text-muted">Suggested: equal to total requested</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes (Optional)</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Generate Batch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-generate batch number
+    function generateBatchNumber(itemName, date) {
+        const prefix = "BATCH";
+        const dateStr = date.replace(/-/g, '');
+        const itemCode = itemName.substring(0, 3).toUpperCase();
+        const random = Math.floor(Math.random() * 1000);
+        return `${prefix}-${dateStr}-${itemCode}-${random}`;
+    }
+    
+    // Get today's date in YYYYMMDD format
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    
+    // Handle generate batch button click
+    document.querySelectorAll('.generate-batch').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            const itemName = this.dataset.itemName;
+            const totalRequested = this.dataset.totalRequested;
+            
+            document.getElementById('batchMenuItemId').value = itemId;
+            document.getElementById('batchMenuItemName').value = itemName;
+            document.getElementById('batchTotalRequested').value = totalRequested;
+            document.getElementById('batchQuantity').value = totalRequested;
+            document.getElementById('batchNumber').value = generateBatchNumber(itemName, today);
+            
+            new bootstrap.Modal(document.getElementById('generateBatchModal')).show();
+        });
+    });
+    
+    // Update batch number when quantity changes (optional)
+    const batchQuantity = document.getElementById('batchQuantity');
+    if (batchQuantity) {
+        batchQuantity.addEventListener('change', function() {
+            const itemName = document.getElementById('batchMenuItemName').value;
+            const qty = this.value;
+            // You can modify batch number based on quantity if needed
+        });
+    }
+</script>
+{% endblock %}

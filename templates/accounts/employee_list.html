@@ -1,0 +1,229 @@
+<!-- templates/accounts/employee_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Employees{% endblock %}
+
+{% block content %}
+<style>
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+    .status-active {
+        background-color: #28a745;
+        color: white;
+    }
+    .status-inactive {
+        background-color: #dc3545;
+        color: white;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .table th, .table td {
+        vertical-align: middle;
+        padding: 10px;
+    }
+</style>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-user-tie"></i> Employees</h4>
+        <a href="{% url 'accounts:create_employee' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add Employee
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Simple Search Form -->
+        <div class="filter-section">
+            <form method="get" class="row">
+                <div class="col-md-3">
+                    <input type="text" name="search" class="form-control" placeholder="Search by name, ID, email..." value="{{ search_query }}">
+                </div>
+                <div class="col-md-3">
+                    <select name="department" class="form-select">
+                        <option value="">All Departments</option>
+                        <option value="restaurant" {% if department == 'restaurant' %}selected{% endif %}>Restaurant</option>
+                        <option value="inventory" {% if department == 'inventory' %}selected{% endif %}>Inventory</option>
+                        <option value="admin" {% if department == 'admin' %}selected{% endif %}>Administration</option>
+                        <option value="kitchen" {% if department == 'kitchen' %}selected{% endif %}>Kitchen</option>
+                        <option value="service" {% if department == 'service' %}selected{% endif %}>Service</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{% url 'accounts:employee_list' %}" class="btn btn-secondary w-100">
+                        <i class="fas fa-undo"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Employees Table -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Position</th>
+                        <th>Department</th>
+                        <th>Salary</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr>
+                        <td>{{ emp.employee_id }}</td>
+                        <td><strong>{{ emp.name }}</strong></td>
+                        <td>{{ emp.email|default:'-' }}</td>
+                        <td>{{ emp.phone|default:'-' }}</td>
+                        <td>{{ emp.position|default:'-' }}</td>
+                        <td>
+                            {% if emp.department == 'restaurant' %}
+                            <span class="badge bg-primary">Restaurant</span>
+                            {% elif emp.department == 'inventory' %}
+                            <span class="badge bg-info">Inventory</span>
+                            {% elif emp.department == 'admin' %}
+                            <span class="badge bg-secondary">Admin</span>
+                            {% elif emp.department == 'kitchen' %}
+                            <span class="badge bg-warning">Kitchen</span>
+                            {% elif emp.department == 'service' %}
+                            <span class="badge bg-success">Service</span>
+                            {% else %}
+                            {{ emp.department }}
+                            {% endif %}
+                        </td>
+                        <td>${{ emp.salary|default:0 }}</td>
+                        <td>
+                            {% if emp.is_active %}
+                            <span class="status-badge status-active">Active</span>
+                            {% else %}
+                            <span class="status-badge status-inactive">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="action-buttons">
+                            <a href="{% url 'accounts:edit_employee' emp.id %}" class="btn btn-sm btn-warning" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn btn-sm btn-danger" onclick="deleteEmployee('{{ emp.id }}', '{{ emp.name }}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% if not emp.is_active %}
+                            <button class="btn btn-sm btn-success" onclick="activateEmployee('{{ emp.id }}')" title="Activate">
+                                <i class="fas fa-check-circle"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">No employees found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if employees.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if employees.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ employees.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department %}&department={{ department }}{% endif %}{% if status %}&status={{ status }}{% endif %}">Previous</a></li>
+                {% endif %}
+                
+                {% for num in employees.paginator.page_range %}
+                <li class="page-item {% if employees.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department %}&department={{ department }}{% endif %}{% if status %}&status={{ status }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                
+                {% if employees.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ employees.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department %}&department={{ department }}{% endif %}{% if status %}&status={{ status }}{% endif %}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        <!-- Summary Cards -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Employees</h6>
+                        <h3 class="mb-0">{{ total_employees }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6>Active</h6>
+                        <h3 class="mb-0">{{ active_count }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Salary</h6>
+                        <h3 class="mb-0">${{ total_salary|floatformat:0 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function deleteEmployee(id, name) {
+        Swal.fire({
+            title: 'Delete Employee?',
+            text: `Are you sure you want to delete "${name}"?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/accounts/employees/' + id + '/delete/';
+            }
+        });
+    }
+    
+    function activateEmployee(id) {
+        Swal.fire({
+            title: 'Activate Employee?',
+            text: 'This will make the employee active again.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            confirmButtonText: 'Yes, activate!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/accounts/employees/' + id + '/activate/';
+            }
+        });
+    }
+</script>
+{% endblock %}

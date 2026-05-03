@@ -1,0 +1,90 @@
+<!-- templates/reports/daily_sales.html -->
+{% extends 'base/base.html' %}
+{% block title %}Daily Sales Report{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-calendar-day"></i> Daily Sales Report</h4>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row mb-4">
+            <div class="col-md-4">
+                <label>Select Date</label>
+                <input type="date" name="date" class="form-control" value="{{ date|date:'Y-m-d' }}">
+            </div>
+            {% if is_admin %}
+            <div class="col-md-4">
+                <label>Restaurant</label>
+                <select name="restaurant" class="form-select">
+                    <option value="">All Restaurants</option>
+                    {% for restaurant in restaurants %}
+                    <option value="{{ restaurant.id }}">{{ restaurant.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-4">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">Generate Report</button>
+            </div>
+        </form>
+        
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Sales</h6>
+                        <h3>${{ total_sales|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Orders</h6>
+                        <h3>{{ total_orders }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6>Average Order</h6>
+                        <h3>${{ avg_order|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Order #</th>
+                        <th>Table</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>{{ order.created_at|date:"H:i" }}</td
+                        <td>{{ order.order_number }}</td
+                        <td>{% if order.table %}Table {{ order.table.table_number }}{% else %}Takeaway{% endif %}</td
+                        <td>${{ order.total_amount|floatformat:2 }}</td
+                        <td>{{ order.get_status_display }}</td
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No orders found for this date.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

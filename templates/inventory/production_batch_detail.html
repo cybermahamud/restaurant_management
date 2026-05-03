@@ -1,0 +1,16 @@
+<!-- templates/inventory/production_batch_detail.html (optional) -->
+{% extends 'base/base.html' %}
+{% block title %}Batch {{ batch.batch_number }}{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header bg-info text-white">
+        <h5>Batch {{ batch.batch_number }} – {{ batch.production_plan_item.menu_item.name }}</h5>
+    </div>
+    <div class="card-body">
+        <p>Planned: {{ batch.planned_quantity|floatformat:2 }} | Actual: {{ batch.actual_quantity|floatformat:2 }} | Wastage: {{ batch.wastage_quantity|floatformat:2 }} ({{ batch.wastage_reason }})</p>
+        <p>Status: {{ batch.get_status_display }}</p>
+        <a href="{% url 'inventory:dispatch_create' batch.id %}" class="btn btn-success">Dispatch to Restaurant</a>
+        <a href="{% url 'inventory:production_plan_detail' batch.production_plan_item.production_plan.id %}" class="btn btn-secondary">Back</a>
+    </div>
+</div>
+{% endblock %}

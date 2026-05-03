@@ -1,0 +1,83 @@
+<!-- templates/accounts/employee_form.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-user-tie"></i> {{ title }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.employee_id|as_crispy_field }}
+                            {{ form.name|as_crispy_field }}
+                            {{ form.email|as_crispy_field }}
+                            {{ form.phone|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.position|as_crispy_field }}
+                            {{ form.department|as_crispy_field }}
+                            {{ form.employment_type|as_crispy_field }}
+                            {{ form.salary|as_crispy_field }}
+                            {{ form.hire_date|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    {{ form.address|as_crispy_field }}
+                    
+                    <div id="restaurantField" style="display: none;">
+                        {{ form.restaurant|as_crispy_field }}
+                    </div>
+                    
+                    <div id="inventoryField" style="display: none;">
+                        {{ form.inventory|as_crispy_field }}
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="id_is_active">Active</label>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save"></i> {{ title }}
+                        </button>
+                        <a href="{% url 'accounts:employee_list' %}" class="btn btn-secondary w-100 mt-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleLocationFields() {
+        const department = document.getElementById('id_department').value;
+        const restaurantField = document.getElementById('restaurantField');
+        const inventoryField = document.getElementById('inventoryField');
+        
+        if (department === 'restaurant') {
+            restaurantField.style.display = 'block';
+            inventoryField.style.display = 'none';
+        } else if (department === 'inventory') {
+            restaurantField.style.display = 'none';
+            inventoryField.style.display = 'block';
+        } else {
+            restaurantField.style.display = 'none';
+            inventoryField.style.display = 'none';
+        }
+    }
+    
+    document.getElementById('id_department').addEventListener('change', toggleLocationFields);
+    toggleLocationFields();
+</script>
+{% endblock %}

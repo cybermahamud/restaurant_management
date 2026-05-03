@@ -1,0 +1,72 @@
+<!-- templates/restaurant/recipes.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Recipe for {{ menu_item.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-plus"></i> Add Recipe Ingredient</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <button type="submit" class="btn btn-primary w-100">Add Ingredient</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-recipe"></i> Recipe for {{ menu_item.name }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Raw Material</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th>Wastage %</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for recipe in recipes %}
+                            <tr>
+                                <td>{{ recipe.raw_material.name }}</td>
+                                <td>{{ recipe.quantity_required }}</td>
+                                <td>{{ recipe.unit }}</td>
+                                <td>{{ recipe.wastage_percentage }}%</td>
+                                <td>
+                                    <a href="{% url 'restaurant:delete_recipe' recipe.id %}" 
+                                       class="btn btn-sm btn-danger"
+                                       onclick="return confirm('Remove this ingredient?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No ingredients added yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="alert alert-info mt-3">
+                    <strong>Total Cost: </strong> ${{ menu_item.cost }}<br>
+                    <strong>Selling Price: </strong> ${{ menu_item.price }}<br>
+                    <strong>Profit Margin: </strong> {{ menu_item.profit_margin|floatformat:2 }}%
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

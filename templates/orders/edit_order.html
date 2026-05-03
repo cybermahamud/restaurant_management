@@ -1,0 +1,68 @@
+<!-- templates/orders/edit_order.html -->
+{% extends 'orders/take_order.html' %}
+{% block title %}Edit Order - {{ order.order_number }}{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Override the page with order data
+    $(document).ready(function() {
+        const orderItems = {{ order_items_json|safe }};
+        
+        // Clear default cart and add existing items
+        cart = [];
+        orderItems.forEach(function(item) {
+            cart.push({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+            });
+        });
+        
+        // Set table
+        $('#tableSelect').val('{{ order.table.id|default:"" }}');
+        $('#orderTypeSelect').val('{{ order.order_type }}');
+        
+        // Set discount
+        currentDiscount = parseFloat('{{ order.discount_amount|default:"0" }}');
+        discountType = '{{ order.discount_type|default:"percentage" }}';
+        $('#discountValue').val(currentDiscount);
+        $('#discountType').val(discountType);
+        
+        renderCart();
+        updateTotals();
+    });
+    
+    // Override save function for update
+    window.saveOrder = function() {
+        if (cart.length === 0) {
+            Swal.fire('Error', 'Please add items to order', 'error');
+            return;
+        }
+        
+        const items = cart.map(item => item.id);
+        const quantities = cart.map(item => item.quantity);
+        
+        $.ajax({
+            url: '/orders/{{ order.id }}/update/',
+            method: 'POST',
+            data: {
+                table_id: $('#tableSelect').val(),
+                order_type: $('#orderTypeSelect').val(),
+                items: JSON.stringify(items),
+                quantities: JSON.stringify(quantities),
+                discount_amount: currentDiscount,
+                discount_type: discountType,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire('Success', response.message, 'success').then(() => {
+                        window.location.href = '/orders/{{ order.id }}/';
+                    });
+                }
+            }
+        });
+    };
+</script>
+{% endblock %}

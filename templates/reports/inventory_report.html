@@ -1,0 +1,50 @@
+<!-- templates/reports/inventory_report.html -->
+{% extends 'base/base.html' %}
+{% block title %}Inventory Report{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-boxes"></i> Inventory Report</h4>
+    </div>
+    <div class="card-body">
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5>Total Materials</h5>
+                        <h2>{{ total_materials }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5>Total Inventory Value</h5>
+                        <h2>${{ total_value|floatformat:2 }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h5>Low Stock Items</h5>
+                        <h2>{{ low_stock_count }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if low_stock_items %}
+        <div class="alert alert-warning">
+            <h5><i class="fas fa-exclamation-triangle"></i> Low Stock Alert</h5>
+            <ul>
+                {% for item in low_stock_items %}
+                <li>{{ item.name }}: Only {{ item.current_stock }} {{ item.unit }} left (Min: {{ item.minimum_stock }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

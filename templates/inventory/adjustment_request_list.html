@@ -1,0 +1,40 @@
+<!-- templates/inventory/adjustment_request_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Adjustment Requests{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-warning text-white">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Adjustment Requests</h5>
+        <a href="{% url 'inventory:adjustment_request_create' %}" class="btn btn-light btn-sm float-end">+ New Request</a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-dark"><tr><th>Date</th><th>Restaurant</th><th>Item</th><th>Current Stock</th><th>Requested Qty</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr>
+                        <td>{{ req.created_at|date:"Y-m-d H:i" }}</td
+                        <td>{{ req.restaurant.name }}</td
+                        <td>{{ req.menu_item.name }}</td
+                        <td>{{ req.current_stock|floatformat:2 }}</td
+                        <td>{{ req.requested_quantity|floatformat:2 }}</td
+                        <td>
+                            {% if req.status == 'pending' %}<span class="badge bg-warning">Pending</span>
+                            {% elif req.status == 'approved' %}<span class="badge bg-success">Approved</span>
+                            {% else %}<span class="badge bg-danger">Rejected</span>{% endif %}
+                        </td
+                        <td>
+                            {% if req.status == 'pending' and user.is_admin_user %}
+                            <a href="{% url 'inventory:adjustment_request_approve' req.id %}" class="btn btn-sm btn-primary">Review</a>
+                            {% else %}-{% endif %}
+                        </td
+                     </tr
+                    {% empty %}<tr><td colspan="7" class="text-center">No requests found.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

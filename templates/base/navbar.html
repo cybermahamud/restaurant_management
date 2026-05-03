@@ -1,0 +1,27 @@
+<!-- templates/base/navbar.html -->
+<nav class="navbar navbar-dark bg-dark sticky-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'common:dashboard' %}">
+            <i class="fas fa-utensils"></i> RMS - Restaurant Management System
+        </a>
+        <div class="d-flex">
+            <div class="dropdown">
+                <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-user"></i> {{ user.get_full_name|default:user.username }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">
+                        <i class="fas fa-user-circle"></i> Profile
+                    </a></li>
+                    <li><a class="dropdown-item" href="{% url 'accounts:change_password' %}">
+                        <i class="fas fa-key"></i> Change Password
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item text-danger" href="{% url 'accounts:logout' %}">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>

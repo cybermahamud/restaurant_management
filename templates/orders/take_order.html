@@ -1,0 +1,436 @@
+<!-- templates/orders/take_order.html -->
+{% extends 'base/base.html' %}
+{% block title %}New Order{% endblock %}
+
+{% block content %}
+<style>
+    .order-container { display: flex; gap: 20px; min-height: calc(100vh - 150px); }
+    .product-catalog { width: 60%; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+    .cart-side { width: 40%; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+    
+    .catalog-header { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee; }
+    .category-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 10px 15px; background: white; border-bottom: 1px solid #eee; }
+    .category-tab { padding: 6px 15px; border-radius: 20px; background: #f8f9fa; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+    .category-tab:hover { background: #e9ecef; }
+    .category-tab.active { background: #007bff; color: white; }
+    
+    .product-grid { flex: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+    .product-card { border: 1px solid #dee2e6; border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.2s; text-align: center; position: relative; }
+    .product-card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: #007bff; background: #f8f9ff; }
+    .product-card.out-of-stock { opacity: 0.6; cursor: not-allowed; background: #f8f9fa; }
+    .product-name { font-weight: 600; font-size: 14px; margin-bottom: 5px; }
+    .product-price { color: #28a745; font-weight: bold; font-size: 16px; }
+    .product-stock { font-size: 11px; color: #6c757d; margin-top: 5px; }
+    .stock-badge { position: absolute; top: 5px; right: 5px; padding: 2px 8px; border-radius: 15px; font-size: 10px; font-weight: bold; }
+    .stock-ok { background-color: #28a745; color: white; }
+    .stock-low { background-color: #ffc107; color: #000; }
+    .stock-out { background-color: #dc3545; color: white; }
+    
+    .cart-header { padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee; }
+    .cart-items { flex: 1; overflow-y: auto; padding: 15px; max-height: 400px; }
+    .cart-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+    .cart-item-details { flex: 1; }
+    .cart-item-name { font-weight: 600; }
+    .quantity-control { display: flex; align-items: center; border: 1px solid #ddd; border-radius: 5px; margin: 0 10px; }
+    .quantity-btn { width: 28px; height: 28px; background: #f8f9fa; border: none; cursor: pointer; }
+    .quantity-input { width: 40px; text-align: center; border: none; }
+    .cart-footer { padding: 15px; background: #f8f9fa; border-top: 1px solid #eee; }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .summary-row.total { font-size: 18px; font-weight: bold; color: #28a745; border-top: 2px solid #dee2e6; padding-top: 10px; margin-top: 10px; }
+    .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
+    .action-buttons button { flex: 1; padding: 10px; border: none; border-radius: 5px; font-weight: 600; cursor: pointer; }
+    .btn-save { background: #28a745; color: white; }
+    .btn-payment { background: #007bff; color: white; }
+    
+    .search-box { position: relative; }
+    .search-box input { padding-right: 35px; }
+    .search-box i { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #999; }
+    .no-results { text-align: center; padding: 40px; color: #999; display: none; grid-column: 1 / -1; }
+    
+    .setmenu-card { border-color: #28a745; background: #f8fff8; }
+    .setmenu-card:hover { background: #f0fff0; }
+</style>
+
+<div class="order-container">
+    <!-- Left Side - Product Catalog -->
+    <div class="product-catalog">
+        <div class="catalog-header">
+            <h5 class="mb-0"><i class="fas fa-utensils"></i> Menu Items</h5>
+            <div class="search-box mt-2">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search menu items...">
+                <i class="fas fa-search"></i>
+            </div>
+        </div>
+        
+        <!-- Category Tabs -->
+        <div class="category-tabs" id="categoryTabs">
+            <div class="category-tab active" data-category="all" onclick="filterByCategory('all')">All</div>
+            {% for category in categories %}
+            <div class="category-tab" data-category="{{ category.id }}" onclick="filterByCategory('{{ category.id }}')">{{ category.name }}</div>
+            {% endfor %}
+        </div>
+        
+        <!-- Menu Items Grid -->
+        <div class="product-grid" id="productGrid">
+            {% for item in menu_items %}
+            <div class="product-card {% if not item.is_available %}out-of-stock{% endif %}" 
+                 data-id="{{ item.id }}" 
+                 data-name="{{ item.name|lower }}" 
+                 data-price="{{ item.price }}" 
+                 data-category="{{ item.category_id }}"
+                 data-max-stock="{{ item.max_order }}"
+                 onclick="{% if item.is_available %}addToCart('menu_{{ item.id }}', '{{ item.name|escapejs }}', {{ item.price }}){% endif %}">
+                
+                {% if not item.is_available %}
+                <div class="stock-badge stock-out">Out of Stock</div>
+                {% elif item.is_low_stock %}
+                <div class="stock-badge stock-low">Low: {{ item.quantity }}</div>
+                {% else %}
+                <div class="stock-badge stock-ok">In Stock</div>
+                {% endif %}
+                
+                <div class="product-name">{{ item.name }}</div>
+                <div class="product-price">${{ item.price }}</div>
+                <div class="product-stock">
+                    {% if item.is_available %}
+                    <i class="fas fa-boxes"></i> Available: {{ item.quantity }} pcs
+                    {% else %}
+                    <i class="fas fa-times-circle"></i> Unavailable
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Set Menus Section -->
+        {% if set_menus %}
+        <div class="mt-3" style="padding: 15px; background: #f8f9fa; border-top: 1px solid #dee2e6;">
+            <h5 class="mb-3"><i class="fas fa-layer-group text-success"></i> Set Menus</h5>
+            <div class="row" id="setMenusGrid">
+                {% for set_menu in set_menus %}
+                <div class="col-md-6 mb-3 set-menu-item" data-name="{{ set_menu.name|lower }}">
+                    <div class="card setmenu-card h-100" onclick="addToCart('setmenu_{{ set_menu.id }}', '{{ set_menu.name|escapejs }} (Set Menu)', {{ set_menu.discounted_price }})">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ set_menu.name }}</h6>
+                            <p class="card-text small text-muted">{{ set_menu.description|truncatewords:15 }}</p>
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <small class="text-muted">Original:</small>
+                                    <strike class="text-muted">${{ set_menu.total_price|floatformat:2 }}</strike>
+                                </div>
+                                <div>
+                                    <small class="text-success">Discounted:</small>
+                                    <strong class="text-success">${{ set_menu.discounted_price|floatformat:2 }}</strong>
+                                </div>
+                            </div>
+                            <small class="text-muted">Includes {{ set_menu.item_count }} items</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="no-results" id="noResults">
+            <i class="fas fa-search fa-3x mb-2"></i>
+            <p>No products found</p>
+        </div>
+    </div>
+    
+    <!-- Right Side - Cart -->
+    <div class="cart-side">
+        <div class="cart-header">
+            <h5 class="mb-0"><i class="fas fa-shopping-cart"></i> Current Order</h5>
+            <div class="row mt-2">
+                <div class="col-6">
+                    <select id="tableSelect" class="form-select">
+                        <option value="">Select Table</option>
+                        {% for table in tables %}
+                        <option value="{{ table.id }}">Table {{ table.table_number }} (Cap: {{ table.capacity }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6">
+                    <select id="orderTypeSelect" class="form-select">
+                        <option value="dine_in">Dine In</option>
+                        <option value="takeaway">Takeaway</option>
+                        <option value="delivery">Delivery</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="cart-items" id="cartItems">
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-shopping-cart fa-3x mb-2"></i>
+                <p>Cart is empty</p>
+                <small>Click on menu items to add</small>
+            </div>
+        </div>
+        
+        <div class="cart-footer">
+            <div class="summary-row"><span>Subtotal:</span><span id="subtotal">$0.00</span></div>
+            <div class="summary-row">
+                <span>Discount:</span>
+                <div class="input-group" style="width: 160px;">
+                    <input type="number" id="discountValue" class="form-control form-control-sm" value="0" step="0.01" style="width: 80px;">
+                    <select id="discountType" class="form-select form-select-sm" style="width: 60px;">
+                        <option value="percentage">%</option>
+                        <option value="fixed">$</option>
+                    </select>
+                    <button class="btn btn-sm btn-warning" onclick="applyDiscount()">Apply</button>
+                </div>
+            </div>
+            <div class="summary-row"><span>Tax (5%):</span><span id="tax">$0.00</span></div>
+            <div class="summary-row total"><span>Total:</span><span id="total">$0.00</span></div>
+            
+            <div class="action-buttons">
+                <button class="btn-save" onclick="saveOrder()"><i class="fas fa-save"></i> Place Order</button>
+                <button class="btn-payment" onclick="processPayment()"><i class="fas fa-credit-card"></i> Payment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let cart = [];
+    let currentDiscount = 0;
+    let discountType = 'percentage';
+    let currentCategory = 'all';
+    
+    function addToCart(id, name, price) {
+        const existing = cart.find(item => item.id === id);
+        
+        // Check if it's a set menu
+        const isSetMenu = id.startsWith('setmenu_');
+        
+        if (existing) {
+            existing.quantity++;
+        } else {
+            cart.push({ id: id, name: name, price: price, quantity: 1, isSetMenu: isSetMenu });
+        }
+        renderCart();
+        
+        // Add animation effect
+        const element = document.querySelector(`.product-card[data-id="${id.replace('menu_', '').replace('setmenu_', '')}"]`);
+        if (element) {
+            element.classList.add('bg-success', 'text-white');
+            setTimeout(() => element.classList.remove('bg-success', 'text-white'), 300);
+        }
+    }
+    
+    function renderCart() {
+        if (cart.length === 0) {
+            $('#cartItems').html('<div class="text-center text-muted py-5"><i class="fas fa-shopping-cart fa-3x mb-2"></i><p>Cart is empty</p><small>Click on menu items to add</small></div>');
+            updateTotals();
+            return;
+        }
+        
+        let html = '';
+        cart.forEach((item, index) => {
+            const itemTotal = item.price * item.quantity;
+            html += `
+                <div class="cart-item">
+                    <div class="cart-item-details">
+                        <div class="cart-item-name">${item.name}</div>
+                        <div>$${item.price} each</div>
+                    </div>
+                    <div class="quantity-control">
+                        <button class="quantity-btn" onclick="updateQty(${index}, -1)">-</button>
+                        <input type="text" class="quantity-input" value="${item.quantity}" readonly>
+                        <button class="quantity-btn" onclick="updateQty(${index}, 1)">+</button>
+                    </div>
+                    <div style="min-width: 70px; text-align: right;">$${itemTotal.toFixed(2)}</div>
+                    <i class="fas fa-trash text-danger" style="margin-left: 10px; cursor: pointer;" onclick="removeItem(${index})"></i>
+                </div>
+            `;
+        });
+        $('#cartItems').html(html);
+        updateTotals();
+    }
+    
+    function updateQty(index, delta) {
+        const newQty = cart[index].quantity + delta;
+        if (newQty > 0) {
+            cart[index].quantity = newQty;
+        } else {
+            cart.splice(index, 1);
+        }
+        renderCart();
+    }
+    
+    function removeItem(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+    
+    function applyDiscount() {
+        currentDiscount = parseFloat($('#discountValue').val()) || 0;
+        discountType = $('#discountType').val();
+        updateTotals();
+        Swal.fire('Success', 'Discount applied', 'success');
+    }
+    
+    function updateTotals() {
+        let subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        let discount = 0;
+        
+        if (discountType === 'percentage') {
+            discount = (subtotal * currentDiscount) / 100;
+        } else {
+            discount = currentDiscount;
+        }
+        
+        // Don't allow discount to exceed subtotal
+        if (discount > subtotal) {
+            discount = subtotal;
+        }
+        
+        const tax = (subtotal - discount) * 0.05;
+        const total = subtotal - discount + tax;
+        
+        $('#subtotal').text('$' + subtotal.toFixed(2));
+        
+        if (discount > 0) {
+            $('#discountRow').show();
+            $('#discountAmount').text(discount.toFixed(2));
+        } else {
+            $('#discountRow').hide();
+        }
+        
+        $('#tax').text('$' + tax.toFixed(2));
+        $('#total').text('$' + total.toFixed(2));
+    }
+    
+    function saveOrder() {
+        if (cart.length === 0) {
+            Swal.fire('Error', 'Please add items to order', 'error');
+            return;
+        }
+        
+        const tableId = $('#tableSelect').val();
+        if (!tableId) {
+            Swal.fire('Error', 'Please select a table', 'error');
+            return;
+        }
+        
+        const items = cart.map(item => item.id);
+        const quantities = cart.map(item => item.quantity);
+        
+        Swal.fire({
+            title: 'Confirm Order',
+            text: 'Are you sure you want to place this order?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            confirmButtonText: 'Yes, place order!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/orders/create-order/',
+                    method: 'POST',
+                    data: {
+                        table_id: tableId,
+                        order_type: $('#orderTypeSelect').val(),
+                        items: JSON.stringify(items),
+                        quantities: JSON.stringify(quantities),
+                        discount_amount: currentDiscount,
+                        discount_type: discountType,
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Success', response.message, 'success').then(() => {
+                                window.location.href = '/orders/orders/';
+                            });
+                        } else {
+                            Swal.fire('Error', response.error, 'error');
+                        }
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'Failed to create order', 'error');
+                    }
+                });
+            }
+        });
+    }
+    
+    function processPayment() {
+        saveOrder();
+    }
+    
+    // Search functionality
+    function filterProducts() {
+        const searchTerm = $('#searchInput').val().toLowerCase().trim();
+        let visibleCount = 0;
+        const allProducts = $('.product-card');
+        
+        if (searchTerm === '') {
+            allProducts.each(function() {
+                const productCategory = $(this).data('category');
+                if (currentCategory === 'all' || productCategory == currentCategory) {
+                    $(this).show();
+                    visibleCount++;
+                } else {
+                    $(this).hide();
+                }
+            });
+        } else {
+            allProducts.each(function() {
+                const productName = $(this).data('name');
+                const productCategory = $(this).data('category');
+                const matchesSearch = productName.indexOf(searchTerm) !== -1;
+                const matchesCategory = (currentCategory === 'all' || productCategory == currentCategory);
+                
+                if (matchesSearch && matchesCategory) {
+                    $(this).show();
+                    visibleCount++;
+                } else {
+                    $(this).hide();
+                }
+            });
+        }
+        
+        // Filter set menus by search
+        if (searchTerm === '') {
+            $('.set-menu-item').show();
+        } else {
+            $('.set-menu-item').each(function() {
+                const name = $(this).data('name');
+                if (name && name.includes(searchTerm)) {
+                    $(this).show();
+                    visibleCount++;
+                } else {
+                    $(this).hide();
+                }
+            });
+        }
+        
+        if (visibleCount === 0 && $('.product-card:visible, .set-menu-item:visible').length === 0) {
+            $('#noResults').show();
+        } else {
+            $('#noResults').hide();
+        }
+    }
+    
+    let searchTimeout;
+    $('#searchInput').on('keyup', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            filterProducts();
+        }, 200);
+    });
+    
+    function filterByCategory(categoryId) {
+        currentCategory = categoryId;
+        $('.category-tab').removeClass('active');
+        $(`.category-tab[data-category="${categoryId}"]`).addClass('active');
+        filterProducts();
+    }
+    
+    $(document).ready(function() {
+        filterProducts();
+    });
+</script>
+{% endblock %}

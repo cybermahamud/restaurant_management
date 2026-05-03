@@ -1,0 +1,58 @@
+<!-- templates/inventory/add_production_batch.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Add Production Batch{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="fas fa-industry"></i> Add Production Batch</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Menu Item <span class="text-danger">*</span></label>
+                            <select name="menu_item" class="form-select" required>
+                                <option value="">Select Menu Item</option>
+                                {% for item in menu_items %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Batch Number <span class="text-danger">*</span></label>
+                            <input type="text" name="batch_number" class="form-control" placeholder="e.g., BATCH-001" required>
+                            <small class="text-muted">Unique batch identifier</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Quantity Produced <span class="text-danger">*</span></label>
+                            <input type="number" name="quantity" class="form-control" step="0.01" placeholder="Enter produced quantity" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="Any notes about this batch..."></textarea>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Save Batch
+                            </button>
+                            <a href="{% url 'inventory:production_batches' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

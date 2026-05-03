@@ -1,0 +1,26 @@
+<!-- templates/common/no_inventory.html -->
+{% extends 'base/base.html' %}
+{% block title %}No Inventory Assigned{% endblock %}
+
+{% block authenticated_content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-8">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> No Inventory Assigned</h4>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-boxes fa-5x text-warning mb-3"></i>
+                    <h5>Your account doesn't have an inventory assigned.</h5>
+                    <p class="text-muted">Please contact your administrator to assign an inventory to your account.</p>
+                    <hr>
+                    <a href="{% url 'accounts:logout' %}" class="btn btn-primary">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+<!-- templates/inventory/dispatch_form.html -->
+{% extends 'base/base.html' %}
+{% load common_filters %}
+
+{% block title %}Dispatch to {{ daily_request.restaurant.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">Dispatch to {{ daily_request.restaurant.name }}</h5>
+        <small>Request Date: {{ daily_request.request_date|date:"Y-m-d" }}</small>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Menu Item</th>
+                            <th>Requested</th>
+                            <th>Already Dispatched</th>
+                            <th>Remaining</th>
+                            <th>Dispatch Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in daily_request.items.all %}
+                        <tr>
+                            <td>{{ item.menu_item.name }}</td>
+                            <td>{{ item.requested_quantity|floatformat:0 }}</td>
+                            <td>{{ item.fulfilled_quantity|floatformat:0 }}</td>
+                            <td>{{ item.requested_quantity|subtract:item.fulfilled_quantity|floatformat:0 }}</td>
+                            <td>
+                                <input type="number" name="qty_{{ item.menu_item.id }}" class="form-control" step="1" min="0" max="{{ item.requested_quantity|subtract:item.fulfilled_quantity }}" value="0">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">Confirm Dispatch</button>
+                <a href="{% url 'inventory:all_requests_list' %}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

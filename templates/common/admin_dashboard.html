@@ -1,0 +1,430 @@
+{% extends 'base/base.html' %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary: #4361ee;
+        --secondary: #3f37c9;
+        --success: #28a745;
+        --danger: #dc3545;
+        --warning: #ffc107;
+        --info: #17a2b8;
+        --dark: #1a1a2e;
+        --light: #f8f9fa;
+    }
+    
+    /* Admin Stats Cards */
+    .admin-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .admin-stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        transition: all 0.3s;
+        text-decoration: none;
+        color: #333;
+        display: block;
+    }
+    
+    .admin-stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        text-decoration: none;
+    }
+    
+    .admin-stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin-bottom: 10px;
+    }
+    
+    .admin-stat-value {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .admin-stat-label {
+        font-size: 13px;
+        color: #6c757d;
+    }
+    
+    /* Filter Section */
+    .filter-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    /* Modern Table */
+    .modern-table {
+        background: white;
+        border-radius: 15px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+    }
+    
+    .modern-table-header {
+        background: var(--dark);
+        color: white;
+        padding: 1rem;
+        font-weight: 600;
+    }
+    
+    .modern-table table {
+        width: 100%;
+        margin-bottom: 0;
+    }
+    
+    .modern-table th {
+        background: var(--dark);
+        color: white;
+        padding: 12px;
+        font-weight: 500;
+    }
+    
+    .modern-table td {
+        padding: 12px;
+        vertical-align: middle;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .modern-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    /* Badges */
+    .badge-status {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    .badge-high { background: #d4edda; color: #155724; }
+    .badge-medium { background: #fff3cd; color: #856404; }
+    .badge-low { background: #f8d7da; color: #721c24; }
+    
+    /* Links */
+    .dashboard-link {
+        color: var(--primary);
+        text-decoration: none;
+    }
+    .dashboard-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="container-fluid">
+
+    <!-- Admin Statistics Cards -->
+    <div class="admin-stats-grid">
+        <a href="{% url 'restaurant:list' %}" class="admin-stat-card">
+            <div class="admin-stat-icon" style="background: rgba(67, 97, 238, 0.1); color: var(--primary);">
+                <i class="fas fa-store"></i>
+            </div>
+            <div class="admin-stat-value">{{ total_restaurants|default:0 }}</div>
+            <div class="admin-stat-label">Total Restaurants</div>
+            <small class="text-muted">View All →</small>
+        </a>
+        
+        <a href="{% url 'inventory:inventory_list' %}" class="admin-stat-card">
+            <div class="admin-stat-icon" style="background: rgba(40, 167, 69, 0.1); color: var(--success);">
+                <i class="fas fa-warehouse"></i>
+            </div>
+            <div class="admin-stat-value">{{ total_inventories|default:0 }}</div>
+            <div class="admin-stat-label">Total Inventories</div>
+            <small class="text-muted">View All →</small>
+        </a>
+        
+        <a href="{% url 'restaurant:menu_list' %}" class="admin-stat-card">
+            <div class="admin-stat-icon" style="background: rgba(23, 162, 184, 0.1); color: var(--info);">
+                <i class="fas fa-utensils"></i>
+            </div>
+            <div class="admin-stat-value">{{ total_menu_items|default:0 }}</div>
+            <div class="admin-stat-label">Menu Items</div>
+            <small class="text-muted">Manage Menu →</small>
+        </a>
+        
+        <a href="{% url 'restaurant:set_menu_list' %}" class="admin-stat-card">
+            <div class="admin-stat-icon" style="background: rgba(255, 193, 7, 0.1); color: var(--warning);">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="admin-stat-value">{{ total_set_menus|default:0 }}</div>
+            <div class="admin-stat-label">Set Menus</div>
+            <small class="text-muted">View All →</small>
+        </a>
+        
+        <a href="{% url 'accounts:employee_list' %}" class="admin-stat-card">
+            <div class="admin-stat-icon" style="background: rgba(108, 117, 125, 0.1); color: #6c757d;">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="admin-stat-value">{{ total_employees|default:0 }}</div>
+            <div class="admin-stat-label">Employees</div>
+            <small class="text-muted">Manage Staff →</small>
+        </a>
+    </div>
+
+   <!-- Filter Section -->
+<div class="filter-section">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">📅 Date Range</label>
+            <select name="date_range" id="dateRangeSelect" class="form-select form-select-sm">
+                <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
+                <option value="yesterday" {% if date_range == 'yesterday' %}selected{% endif %}>Yesterday</option>
+                <option value="week" {% if date_range == 'week' %}selected{% endif %}>This Week</option>
+                <option value="month" {% if date_range == 'month' %}selected{% endif %}>This Month</option>
+                <option value="last_month" {% if date_range == 'last_month' %}selected{% endif %}>Last Month</option>
+                <option value="year" {% if date_range == 'year' %}selected{% endif %}>This Year</option>
+                <option value="custom" {% if date_range == 'custom' %}selected{% endif %}>Custom Range</option>
+            </select>
+        </div>
+        
+        <!-- Custom Date Fields -->
+        <div class="col-md-2" id="customStartDateDiv" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
+            <label class="form-label small text-muted mb-1">📅 From Date</label>
+            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|default:'' }}">
+        </div>
+        
+        <div class="col-md-2" id="customEndDateDiv" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
+            <label class="form-label small text-muted mb-1">📅 To Date</label>
+            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|default:'' }}">
+        </div>
+        
+        <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">🏪 Restaurant</label>
+            <select name="restaurant" class="form-select form-select-sm">
+                <option value="">All Restaurants</option>
+                {% for restaurant in restaurants %}
+                <option value="{{ restaurant.id }}" {% if selected_restaurant == restaurant.id|stringformat:"s" %}selected{% endif %}>
+                    {{ restaurant.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">&nbsp;</label>
+            <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="fas fa-search"></i> Apply Filter
+            </button>
+        </div>
+        
+        <div class="col-md-2">
+            <label class="form-label small text-muted mb-1">&nbsp;</label>
+            <a href="{% url 'common:dashboard' %}" class="btn btn-secondary btn-sm w-100">
+                <i class="fas fa-sync-alt"></i> Reset
+            </a>
+        </div>
+    </form>
+    
+    <!-- Show selected date range info -->
+    {% if date_range == 'custom' and start_date and end_date %}
+    <div class="alert alert-info mt-3 mb-0 py-2 small">
+        <i class="fas fa-calendar-alt"></i> Showing data from <strong>{{ start_date }}</strong> to <strong>{{ end_date }}</strong>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add this JavaScript at the bottom of the template -->
+<script>
+    // Toggle custom date fields based on selection
+    const dateRangeSelect = document.getElementById('dateRangeSelect');
+    const customStartDiv = document.getElementById('customStartDateDiv');
+    const customEndDiv = document.getElementById('customEndDateDiv');
+    
+    if (dateRangeSelect) {
+        dateRangeSelect.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customStartDiv.style.display = 'block';
+                customEndDiv.style.display = 'block';
+            } else {
+                customStartDiv.style.display = 'none';
+                customEndDiv.style.display = 'none';
+            }
+        });
+    }
+</script>
+
+    <!-- Summary Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="admin-stat-card" style="text-align: left;">
+                <small class="text-muted">Total Revenue</small>
+                <h3 class="mb-0 text-success">${{ total_restaurant_sales|floatformat:2|default:"0" }}</h3>
+                <small>{{ total_restaurant_orders|default:0 }} Orders</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-stat-card" style="text-align: left;">
+                <small class="text-muted">Total Profit</small>
+                <h3 class="mb-0 text-primary">${{ total_restaurant_profit|floatformat:2|default:"0" }}</h3>
+                <small>Margin: {% widthratio total_restaurant_profit total_restaurant_sales 100 %}%</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-stat-card" style="text-align: left;">
+                <small class="text-muted">Avg Order Value</small>
+                <h3 class="mb-0 text-info">${{ avg_order_value|floatformat:2|default:"0" }}</h3>
+                <small>Per transaction</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="admin-stat-card" style="text-align: left;">
+                <small class="text-muted">Inventory Value</small>
+                <h3 class="mb-0 text-warning">${{ total_inventory_value|floatformat:2|default:"0" }}</h3>
+                <small>Total stock value</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restaurant Performance Table -->
+    <div class="modern-table">
+        <div class="modern-table-header">
+            <i class="fas fa-store"></i> Restaurant Performance
+            <span class="float-end">Period: {{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}</span>
+        </div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Restaurant</th>
+                    <th>Orders</th>
+                    <th>Revenue</th>
+                    <th>Cost</th>
+                    <th>Profit</th>
+                    <th>Margin</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in restaurant_data %}
+                <tr>
+                    <td><strong>{{ item.restaurant.name }}</strong></td>
+                    <td>{{ item.orders }}</td>
+                    <td class="text-success">${{ item.sales|floatformat:2 }}</td>
+                    <td class="text-muted">${{ item.cost|floatformat:2 }}</td>
+                    <td class="text-primary">${{ item.profit|floatformat:2 }}</td>
+                    <td>
+                        <span class="badge-status {% if item.margin > 20 %}badge-high{% elif item.margin > 10 %}badge-medium{% else %}badge-low{% endif %}">
+                            {{ item.margin|floatformat:1 }}%
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'orders:order_list' %}?restaurant={{ item.restaurant.id }}" class="dashboard-link">
+                            View Orders <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center py-4 text-muted">No data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="row">
+        <!-- Left Column - Top Selling Items -->
+        <div class="col-lg-6">
+            <div class="modern-table">
+                <div class="modern-table-header">
+                    <i class="fas fa-fire text-warning"></i> Top Selling Items
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr><th>Menu Item</th><th>Quantity</th><th>Revenue</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top_items %}
+                        <tr>
+                            <td><strong>{{ item.menu_item__name }}</strong></td>
+                            <td><span class="badge bg-primary">{{ item.total_quantity|floatformat:0 }}</span></td>
+                            <td class="text-success">${{ item.total_revenue|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center py-4 text-muted">No data available</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Right Column - Low Stock Alert -->
+        <div class="col-lg-6">
+            <div class="modern-table">
+                <div class="modern-table-header bg-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Low Stock Alert
+                    <span class="float-end">{{ low_stock_count }} items low</span>
+                </div>
+                <table class="table">
+                    <thead>
+                        <tr><th>Material</th><th>Current Stock</th><th>Min Stock</th><th>Unit</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in low_stock_items %}
+                        <tr>
+                            <td><strong>{{ item.name }}</strong></td>
+                            <td class="text-danger">{{ item.current_stock|floatformat:2 }}</td>
+                            <td>{{ item.minimum_stock|floatformat:2 }}</td>
+                            <td>{{ item.unit }}</td>
+                            <td><span class="badge-status badge-low">Critical</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center py-4 text-success">
+                            <i class="fas fa-check-circle"></i> All items have sufficient stock
+                        </td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="text-center p-2">
+                    <a href="{% url 'inventory:raw_material_list' %}" class="dashboard-link">
+                        Manage Inventory <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links to Restaurant Dashboards -->
+    <div class="modern-table">
+        <div class="modern-table-header">
+            <i class="fas fa-chart-simple"></i> Restaurant Quick Access
+        </div>
+        <div class="row p-3">
+            {% for restaurant in restaurants|slice:":4" %}
+            <div class="col-md-3 mb-2">
+                <a href="{% url 'orders:order_list' %}?restaurant={{ restaurant.id }}" class="dashboard-link d-block p-2 border rounded text-center">
+                    <i class="fas fa-store"></i> {{ restaurant.name }}
+                    <small class="d-block text-muted">View Details →</small>
+                </a>
+            </div>
+            {% empty %}
+            <div class="col-12 text-center text-muted">No restaurants available</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-refresh for real-time data (optional - refresh every 5 minutes)
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+</script>
+{% endblock %}

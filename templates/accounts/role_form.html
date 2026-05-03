@@ -1,0 +1,50 @@
+<!-- templates/accounts/role_form.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}{{ title|default:'Create Role' }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-shield-alt"></i> {{ title|default:'Create Role' }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Role Name</label>
+                        <input type="text" name="name" id="id_name" class="form-control" 
+                               value="{{ form.name.value|default:'' }}" required>
+                        <small class="text-muted">Use lowercase, no spaces (e.g., admin, staff, kitchen_manager)</small>
+                        {% if form.name.errors %}
+                            <div class="text-danger">{{ form.name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_description" class="form-label">Description</label>
+                        <textarea name="description" id="id_description" class="form-control" rows="3">{{ form.description.value|default:'' }}</textarea>
+                        {% if form.description.errors %}
+                            <div class="text-danger">{{ form.description.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    {{ form.permissions }}
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Role
+                        </button>
+                        <a href="{% url 'accounts:role_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

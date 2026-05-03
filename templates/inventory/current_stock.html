@@ -1,0 +1,206 @@
+<!-- templates/inventory/current_stock.html -->
+{% extends 'base/base.html' %}
+{% block title %}Current Stock{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-boxes"></i> Current Stock</h4>
+        <a href="{% url 'inventory:create_raw_material' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add New Material
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Materials</h6>
+                        <h3 class="mb-0">{{ materials|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h6>Low Stock</h6>
+                        <h3 class="mb-0" id="lowStockCount">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Value</h6>
+                        <h3 class="mb-0">$<span id="totalValue">0</span></h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Units</h6>
+                        <h3 class="mb-0" id="totalUnits">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <select id="categoryFilter" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search by name or SKU...">
+            </div>
+            <div class="col-md-4">
+                <button id="clearFilters" class="btn btn-secondary w-100">Clear Filters</button>
+            </div>
+        </div>
+
+        <!-- Stock Table -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>SKU</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Current Stock</th>
+                        <th>Unit</th>
+                        <th>Unit Price</th>
+                        <th>Total Value</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody">
+                    {% for material in materials %}
+                    <tr class="stock-row" data-category="{{ material.category.id }}" data-name="{{ material.name|lower }}" data-sku="{{ material.sku|lower }}">
+                        <td>{{ material.sku }}</td>
+                        <td><strong>{{ material.name }}</strong></td>
+                        <td>{{ material.category.name|default:'General' }}</td>
+                        <td class="{% if material.current_stock <= material.minimum_stock %}text-danger fw-bold{% endif %}">
+                            {{ material.current_stock|floatformat:2 }}
+                        </td>
+                        <td>{{ material.unit }}</td>
+                        <td>${{ material.unit_cost|floatformat:2 }}</td>
+                        <td>${{ material.current_stock|floatformat:2|add:material.unit_cost|floatformat:2 }}</td>
+                        <td>
+                            {% if material.current_stock <= material.minimum_stock %}
+                            <span class="badge bg-danger">Low Stock</span>
+                            {% else %}
+                            <span class="badge bg-success">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'inventory:stock_detail' material.id %}" class="btn btn-sm btn-info">
+                                <i class="fas fa-chart-line"></i> Manage
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">No materials found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateSummary() {
+        let lowStock = 0, totalValue = 0, totalUnits = 0;
+        const rows = document.querySelectorAll('#stockTableBody tr');
+        
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            // Skip if it's the "no materials" row
+            if (row.querySelector('td[colspan]')) continue;
+            
+            const stockCell = row.cells[3];
+            const priceCell = row.cells[5];
+            const statusCell = row.cells[7];
+            
+            if (!stockCell || !priceCell) continue;
+            
+            const stock = parseFloat(stockCell.innerText) || 0;
+            const priceText = priceCell.innerText;
+            const price = parseFloat(priceText.replace('$', '')) || 0;
+            const status = statusCell ? statusCell.innerText : '';
+            
+            if (status === 'Low Stock') lowStock++;
+            totalValue += stock * price;
+            totalUnits += stock;
+        }
+        
+        document.getElementById('lowStockCount').innerText = lowStock;
+        document.getElementById('totalValue').innerText = totalValue.toFixed(0);
+        document.getElementById('totalUnits').innerText = totalUnits.toFixed(0);
+    }
+
+    function filterTable() {
+        const category = document.getElementById('categoryFilter').value;
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        let visible = 0;
+        const rows = document.querySelectorAll('#stockTableBody tr');
+        
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            // Skip if it's the "no materials" row
+            if (row.querySelector('td[colspan]')) continue;
+            
+            const rowCategory = row.getAttribute('data-category');
+            const rowName = row.getAttribute('data-name');
+            const rowSku = row.getAttribute('data-sku');
+            
+            let show = true;
+            if (category && rowCategory !== category) show = false;
+            if (search && !rowName.includes(search) && !rowSku.includes(search)) show = false;
+            
+            if (show) {
+                row.style.display = '';
+                visible++;
+            } else {
+                row.style.display = 'none';
+            }
+        }
+        
+        // Show/hide no results message
+        let noRow = document.getElementById('noResultsRow');
+        if (visible === 0 && document.querySelectorAll('#stockTableBody tr:not([style*="display: none"])').length > 0) {
+            if (!noRow) {
+                const tbody = document.getElementById('stockTableBody');
+                const tr = document.createElement('tr');
+                tr.id = 'noResultsRow';
+                tr.innerHTML = '<td colspan="9" class="text-center py-4">No matching materials found</td>';
+                tbody.appendChild(tr);
+            }
+        } else if (noRow) {
+            noRow.remove();
+        }
+    }
+
+    document.getElementById('categoryFilter').addEventListener('change', filterTable);
+    document.getElementById('searchInput').addEventListener('keyup', filterTable);
+    document.getElementById('clearFilters').addEventListener('click', function() {
+        document.getElementById('categoryFilter').value = '';
+        document.getElementById('searchInput').value = '';
+        filterTable();
+    });
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSummary();
+        filterTable();
+    });
+</script>
+{% endblock %}

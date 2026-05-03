@@ -1,0 +1,114 @@
+<!-- templates/inventory/purchase_order_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Purchase Orders{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-file-invoice"></i> Purchase Orders</h4>
+        {% if user.role == 'admin' or user.role == 'store' %}
+        <a href="{% url 'inventory:create_purchase_order' %}" class="btn btn-primary btn-sm float-end">
+            <i class="fas fa-plus"></i> Create PO
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="poTable">
+                <thead>
+                    <tr>
+                        <th>PO Number</th>
+                        <th>Supplier</th>
+                        <th>Order Date</th>
+                        <th>Expected Delivery</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in purchase_orders %}
+                    <tr>
+                        <td>{{ po.po_number }}</td>
+                        <td>{{ po.supplier }}</td>
+                        <td>{{ po.order_date|date:"Y-m-d" }}</td>
+                        <td>{{ po.expected_delivery|date:"Y-m-d" }}</td>
+                        <td>${{ po.total_amount }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if po.status == 'received' %}bg-success
+                                {% elif po.status == 'approved' %}bg-info
+                                {% elif po.status == 'pending' %}bg-warning
+                                {% elif po.status == 'cancelled' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {{ po.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if po.status == 'draft' %}
+                            <a href="{% url 'inventory:edit_purchase_order' po.id %}" class="btn btn-sm btn-warning">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button class="btn btn-sm btn-danger" onclick="cancelPO('{{ po.id }}')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            {% endif %}
+                            {% if po.status == 'approved' %}
+                            <button class="btn btn-sm btn-success" onclick="receivePO('{{ po.id }}')">
+                                <i class="fas fa-check"></i> Receive
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No purchase orders found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function cancelPO(poId) {
+        Swal.fire({
+            title: 'Cancel Purchase Order?',
+            text: "This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, cancel it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/inventory/purchase-orders/' + poId + '/cancel/';
+            }
+        });
+    }
+    
+    function receivePO(poId) {
+        Swal.fire({
+            title: 'Receive Order?',
+            text: "This will update inventory stock levels.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#dc3545',
+            confirmButtonText: 'Yes, receive order'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/inventory/purchase-orders/' + poId + '/receive/';
+            }
+        });
+    }
+    
+    $(document).ready(function() {
+        $('#poTable').DataTable({
+            "order": [[2, "desc"]],
+            "pageLength": 20
+        });
+    });
+</script>
+{% endblock %}

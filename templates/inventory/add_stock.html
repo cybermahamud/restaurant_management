@@ -1,0 +1,47 @@
+<!-- templates/inventory/add_stock.html -->
+{% extends 'base/base.html' %}
+{% block title %}Add Stock - {{ raw_material.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-plus-circle"></i> Add Stock to {{ raw_material.name }}</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <strong>Current Stock:</strong> {{ raw_material.current_stock }} {{ raw_material.unit }}<br>
+                    <strong>Current Unit Cost:</strong> ${{ raw_material.unit_cost }}
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity to Add</label>
+                        <input type="number" name="quantity" id="quantity" class="form-control" 
+                               step="0.001" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="unit_cost" class="form-label">Unit Cost ($)</label>
+                        <input type="number" name="unit_cost" id="unit_cost" class="form-control" 
+                               step="0.01" value="{{ raw_material.unit_cost }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reference_number" class="form-label">Reference Number (Invoice/PO)</label>
+                        <input type="text" name="reference_number" id="reference_number" class="form-control" required>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-plus-circle"></i> Add Stock
+                        </button>
+                        <a href="{% url 'inventory:raw_material_list' %}" class="btn btn-secondary w-100 mt-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

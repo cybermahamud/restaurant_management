@@ -1,0 +1,401 @@
+<!-- templates/orders/order_detail.html -->
+{% extends 'base/base.html' %}
+{% block title %}Order #{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<style>
+    .order-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
+        border-left: 4px solid;
+    }
+    .stat-card.primary { border-left-color: #007bff; }
+    .stat-card.success { border-left-color: #28a745; }
+    .stat-card.warning { border-left-color: #ffc107; }
+    .stat-card.danger { border-left-color: #dc3545; }
+    .stat-card.info { border-left-color: #17a2b8; }
+    
+    .timeline {
+        position: relative;
+        padding: 20px 0;
+    }
+    .timeline-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 30px;
+        position: relative;
+    }
+    .timeline-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        flex-shrink: 0;
+        color: white;
+    }
+    .timeline-icon.completed { background: #28a745; }
+    .timeline-icon.pending { background: #ffc107; }
+    .timeline-icon.current { background: #007bff; }
+    .timeline-content {
+        flex: 1;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #eee;
+    }
+    .timeline-title { font-weight: 600; margin-bottom: 5px; }
+    .timeline-date { font-size: 12px; color: #6c757d; }
+    
+    .item-table {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .item-table th { background: #f8f9fa; border: none; }
+    .action-buttons .btn { margin: 5px; padding: 8px 20px; }
+    
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: 30px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    .status-pending { background: #ffc107; color: #000; }
+    .status-preparing { background: #fd7e14; color: #fff; }
+    .status-ready { background: #20c997; color: #fff; }
+    .status-completed { background: #28a745; color: #fff; }
+    .status-cancelled { background: #dc3545; color: #fff; }
+</style>
+
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="order-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-0">Order #{{ order.order_number }}</h2>
+                <p class="mb-0 mt-2 opacity-75">Placed on {{ order.created_at|date:"F d, Y H:i" }}</p>
+            </div>
+            <div>
+                <span class="status-badge status-{{ order.status }}">{{ order.get_status_display }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Order Timeline -->
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Order Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-icon completed">
+                                <i class="fas fa-check"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">Order Placed</div>
+                                <div class="timeline-date">{{ order.created_at|date:"F d, Y H:i:s" }}</div>
+                                <small>By: {{ order.staff.get_full_name|default:order.staff.username }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-icon {% if order.status != 'pending' %}completed{% else %}pending{% endif %}">
+                                <i class="fas fa-fire"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">Preparing</div>
+                                <div class="timeline-date">
+                                    {% if order.status != 'pending' %}
+                                    Kitchen has started preparing
+                                    {% else %}
+                                    Waiting for kitchen confirmation
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-icon {% if order.status == 'ready' or order.status == 'completed' %}completed{% else %}pending{% endif %}">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">Ready for Serving</div>
+                                <div class="timeline-date">
+                                    {% if order.status == 'ready' or order.status == 'completed' %}
+                                    Order is ready to be served
+                                    {% else %}
+                                    Being prepared in kitchen
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="timeline-icon {% if order.status == 'completed' %}completed{% endif %}">
+                                <i class="fas fa-flag-checkered"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">Completed</div>
+                                <div class="timeline-date">
+                                    {% if order.status == 'completed' %}
+                                    Order completed and served
+                                    {% else %}
+                                    In progress
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Order Items -->
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> Order Items</h5>
+                    <a href="{% url 'orders:edit_order' order.id %}" class="btn btn-sm btn-warning">
+                        <i class="fas fa-plus"></i> Add/Edit Items
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table item-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                    <th>Kitchen Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in order.items.all %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.menu_item.name }}</strong>
+                                        {% if item.notes %}<br><small class="text-muted">{{ item.notes }}</small>{% endif %}
+                                    </td
+                                    <td>{{ item.quantity }}</td
+                                    <td>${{ item.unit_price|floatformat:2 }}</td
+                                    <td>${{ item.total_price|floatformat:2 }}</td
+                                    <td>
+                                        <select class="form-select form-select-sm item-status" data-item-id="{{ item.id }}" style="width: 120px;">
+                                            <option value="pending" {% if item.status == 'pending' %}selected{% endif %}>Pending</option>
+                                            <option value="preparing" {% if item.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                                            <option value="ready" {% if item.status == 'ready' %}selected{% endif %}>Ready</option>
+                                            <option value="served" {% if item.status == 'served' %}selected{% endif %}>Served</option>
+                                        </select>
+                                    </td
+                                    <td>
+                                        <button class="btn btn-sm btn-secondary" onclick="printToKitchen('{{ item.id }}')" title="Print to Kitchen">
+                                            <i class="fas fa-print"></i>
+                                        </button>
+                                    </td
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr><td colspan="3" class="text-end"><strong>Subtotal:</strong></td><td><strong>${{ order.subtotal|floatformat:2 }}</strong></td><td></td><td></td></tr>
+                                {% if order.discount_amount > 0 %}
+                                <tr class="text-success"><td colspan="3" class="text-end"><strong>Discount:</strong></td><td><strong>-${{ order.discount_amount|floatformat:2 }}</strong></td><td></td><td></td></tr>
+                                {% endif %}
+                                <tr><td colspan="3" class="text-end"><strong>Tax (5%):</strong></td><td><strong>${{ order.tax_amount|floatformat:2 }}</strong></td><td></td><td></td></tr>
+                                <tr class="table-success"><td colspan="3" class="text-end"><strong>Total:</strong></td><td><strong class="h5">${{ order.total_amount|floatformat:2 }}</strong></td><td></td><td></td></tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Order Information Card -->
+            <div class="stat-card primary">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <small class="text-muted">ORDER TYPE</small>
+                        <h4 class="mb-0">{{ order.get_order_type_display }}</h4>
+                    </div>
+                    <i class="fas fa-store fa-2x text-muted"></i>
+                </div>
+            </div>
+            
+            <div class="stat-card info">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <small class="text-muted">TABLE</small>
+                        <h4 class="mb-0">{% if order.table %}Table {{ order.table.table_number }}{% else %}Takeaway{% endif %}</h4>
+                    </div>
+                    <i class="fas fa-chair fa-2x text-muted"></i>
+                </div>
+            </div>
+            
+            <div class="stat-card success">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <small class="text-muted">STAFF</small>
+                        <h4 class="mb-0">{{ order.staff.get_full_name|default:order.staff.username }}</h4>
+                    </div>
+                    <i class="fas fa-user fa-2x text-muted"></i>
+                </div>
+            </div>
+            
+            <div class="stat-card warning">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <small class="text-muted">PAYMENT STATUS</small>
+                        <h4 class="mb-0">
+                            {% if order.payment_status == 'paid' %}
+                            <span class="text-success">Paid</span>
+                            {% else %}
+                            <span class="text-danger">Pending</span>
+                            {% endif %}
+                        </h4>
+                    </div>
+                    <i class="fas fa-credit-card fa-2x text-muted"></i>
+                </div>
+            </div>
+            
+            <!-- Actions Card -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-cog"></i> Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <div class="mb-3">
+                            <label class="form-label">Update Order Status</label>
+                            <select id="orderStatusSelect" class="form-select">
+                                <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="preparing" {% if order.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                                <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Ready</option>
+                                <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+                        
+                        <a href="{% url 'orders:edit_order' order.id %}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Edit Order
+                        </a>
+                        <a href="{% url 'orders:kitchen_print' order.id %}" class="btn btn-secondary" target="_blank">
+                            <i class="fas fa-print"></i> Print Kitchen Order
+                        </a>
+                        {% if order.payment_status != 'paid' %}
+                        <a href="{% url 'orders:payment_page' order.id %}" class="btn btn-success">
+                            <i class="fas fa-money-bill"></i> Process Payment
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'orders:print_bill' order.id %}" class="btn btn-primary" target="_blank">
+                            <i class="fas fa-receipt"></i> Print Bill
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Notes -->
+            {% if order.notes %}
+            <div class="card mt-3">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-sticky-note"></i> Notes</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ order.notes|linebreaks }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Update order status
+    $('#orderStatusSelect').change(function() {
+        const newStatus = $(this).val();
+        Swal.fire({
+            title: 'Update Status?',
+            text: `Change order status to ${newStatus.toUpperCase()}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, update it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/orders/{{ order.id }}/update-status/',
+                    method: 'POST',
+                    data: {
+                        status: newStatus,
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        Swal.fire('Success', 'Status updated', 'success').then(() => {
+                            location.reload();
+                        });
+                    }
+                });
+            } else {
+                $('#orderStatusSelect').val('{{ order.status }}');
+            }
+        });
+    });
+    
+    // Update item status
+    $('.item-status').change(function() {
+        const itemId = $(this).data('item-id');
+        const newStatus = $(this).val();
+        
+        $.ajax({
+            url: '/orders/order-items/' + itemId + '/update-status/',
+            method: 'POST',
+            data: {
+                status: newStatus,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function() {
+                Swal.fire('Success', 'Item status updated', 'success');
+            }
+        });
+    });
+    
+    // Print to kitchen
+    function printToKitchen(itemId) {
+        Swal.fire({
+            title: 'Print to Kitchen?',
+            text: 'Send this item to kitchen for preparation?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, print it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/orders/kitchen-print/' + itemId + '/',
+                    method: 'POST',
+                    data: {
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function() {
+                        Swal.fire('Success', 'Sent to kitchen', 'success');
+                    }
+                });
+            }
+        });
+    }
+</script>
+{% endblock %}

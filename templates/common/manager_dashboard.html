@@ -1,0 +1,92 @@
+<!-- templates/common/manager_dashboard.html -->
+{% extends 'base/base.html' %}
+{% block title %}Manager Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2>Welcome, {{ user.get_full_name|default:user.username }}!</h2>
+            <p class="text-muted">{{ restaurant.name }} - Manager Dashboard</p>
+        </div>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6>Today's Sales</h6>
+                            <h2 class="mb-0">${{ today_sales|floatformat:2 }}</h2>
+                        </div>
+                        <i class="fas fa-chart-line fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6>Monthly Sales</h6>
+                            <h2 class="mb-0">${{ month_sales|floatformat:2 }}</h2>
+                        </div>
+                        <i class="fas fa-calendar-alt fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6>Avg Order Value</h6>
+                            <h2 class="mb-0">${{ avg_order_value|floatformat:2 }}</h2>
+                        </div>
+                        <i class="fas fa-receipt fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">Management Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{% url 'reports:sales_report' %}" class="btn btn-info btn-lg w-100 mb-2">
+                                <i class="fas fa-chart-line"></i> Sales Report
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'orders:order_list' %}" class="btn btn-success btn-lg w-100 mb-2">
+                                <i class="fas fa-receipt"></i> View Orders
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'restaurant:stock_status' %}" class="btn btn-warning btn-lg w-100 mb-2">
+                                <i class="fas fa-boxes"></i> Stock Status
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'accounts:employee_list' %}" class="btn btn-primary btn-lg w-100 mb-2">
+                                <i class="fas fa-users"></i> Staff Management
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

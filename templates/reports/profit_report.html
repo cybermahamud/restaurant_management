@@ -1,0 +1,77 @@
+<!-- templates/reports/profit_report.html -->
+{% extends 'base/base.html' %}
+{% block title %}Profit Report{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-chart-pie"></i> Profit & Loss Report</h4>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row mb-4">
+            <div class="col-md-4">
+                <label>Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+            </div>
+            <div class="col-md-4">
+                <label>End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+            </div>
+            <div class="col-md-4">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">Generate Report</button>
+            </div>
+        </form>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h5>Total Revenue</h5>
+                        <h2>${{ total_revenue|floatformat:2 }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h5>Total Cost</h5>
+                        <h2>${{ total_cost|floatformat:2 }}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h5>Net Profit</h5>
+                        <h2>${{ total_profit|floatformat:2 }}</h2>
+                        <h5>Profit Margin: {{ profit_margin|floatformat:2 }}%</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <canvas id="profitChart" class="mt-4" height="100"></canvas>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    const ctx = document.getElementById('profitChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Revenue', 'Cost'],
+            datasets: [{
+                data: [{{ total_revenue }}, {{ total_cost }}],
+                backgroundColor: ['#28a745', '#dc3545'],
+                borderWidth: 0
+            }]
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

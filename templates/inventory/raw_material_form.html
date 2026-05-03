@@ -1,0 +1,150 @@
+<!-- templates/inventory/raw_material_form.html -->
+{% extends 'base/base.html' %}
+{% block title %}{% if material %}Edit{% else %}Create{% endif %} Raw Material{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'inventory:raw_material_list' %}">Raw Materials</a></li>
+                    <li class="breadcrumb-item active">{% if material %}Edit {{ material.name }}{% else %}Create New{% endif %}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-{% if material %}edit{% else %}plus{% endif %}"></i>
+                        {% if material %}Edit {{ material.name }}{% else %}Create Raw Material{% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Name *</label>
+                                    <input type="text" name="name" class="form-control" 
+                                           value="{{ material.name|default:'' }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">SKU</label>
+                                    <input type="text" name="sku" class="form-control" 
+                                           value="{{ material.sku|default:'' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Category</label>
+                                    <select name="category" class="form-select">
+                                        <option value="">-- Select Category --</option>
+                                        {% for category in categories %}
+                                        <option value="{{ category.id }}" 
+                                            {% if material and material.category_id == category.id %}selected{% endif %}>
+                                            {{ category.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Unit *</label>
+                                    <select name="unit" class="form-select" required>
+                                        <option value="kg" {% if material.unit == 'kg' %}selected{% endif %}>Kilogram (kg)</option>
+                                        <option value="g" {% if material.unit == 'g' %}selected{% endif %}>Gram (g)</option>
+                                        <option value="l" {% if material.unit == 'l' %}selected{% endif %}>Liter (l)</option>
+                                        <option value="ml" {% if material.unit == 'ml' %}selected{% endif %}>Milliliter (ml)</option>
+                                        <option value="pcs" {% if material.unit == 'pcs' %}selected{% endif %}>Pieces (pcs)</option>
+                                        <option value="box" {% if material.unit == 'box' %}selected{% endif %}>Box</option>
+                                        <option value="pack" {% if material.unit == 'pack' %}selected{% endif %}>Pack</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Minimum Stock</label>
+                                    <input type="number" name="minimum_stock" class="form-control" step="0.001" 
+                                           value="{{ material.minimum_stock|default:'0' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Maximum Stock</label>
+                                    <input type="number" name="maximum_stock" class="form-control" step="0.001" 
+                                           value="{{ material.maximum_stock|default:'0' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Reorder Level</label>
+                                    <input type="number" name="reorder_level" class="form-control" step="0.001" 
+                                           value="{{ material.reorder_level|default:'0' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Unit Cost ($)</label>
+                                    <input type="number" name="unit_cost" class="form-control" step="0.01" 
+                                           value="{{ material.unit_cost|default:'0' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Inventory *</label>
+                                    <select name="inventory" class="form-select" required>
+                                        <option value="">-- Select Inventory --</option>
+                                        {% for inventory in inventories %}
+                                        <option value="{{ inventory.id }}"
+                                            {% if material and material.inventory_id == inventory.id %}selected{% endif %}>
+                                            {{ inventory.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" class="form-check-input" 
+                                       {% if material.is_active %}checked{% endif %}>
+                                <label class="form-check-label">Active</label>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 
+                                {% if material %}Update{% else %}Create{% endif %} Material
+                            </button>
+                            <a href="{% url 'inventory:raw_material_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

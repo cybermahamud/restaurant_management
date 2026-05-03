@@ -1,0 +1,24 @@
+<!-- templates/inventory/sales_entry_form.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Record Sales{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-line"></i> Record Daily Sales</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <button type="submit" class="btn btn-primary">Submit Sale</button>
+                    <a href="{% url 'inventory:sales_entry_list' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

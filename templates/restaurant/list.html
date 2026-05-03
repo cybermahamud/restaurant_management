@@ -1,0 +1,69 @@
+<!-- templates/restaurant/list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Restaurants{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-store"></i> Restaurants</h4>
+        {% if user.role == 'admin' %}
+        <a href="{% url 'restaurant:create' %}" class="btn btn-primary btn-sm float-end">
+            <i class="fas fa-plus"></i> Add Restaurant
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for restaurant in restaurants %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ restaurant.name }}</h5>
+                        <p class="card-text">
+                            <small><i class="fas fa-map-marker-alt"></i> {{ restaurant.address|truncatewords:10 }}</small><br>
+                            <small><i class="fas fa-phone"></i> {{ restaurant.phone }}</small><br>
+                            <small><i class="fas fa-envelope"></i> {{ restaurant.email }}</small>
+                        </p>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'restaurant:manage_tables' restaurant.id %}" class="btn btn-sm btn-info">
+                                <i class="fas fa-chair"></i> Manage Tables
+                            </a>
+                            {% if user.role == 'admin' %}
+                            <a href="{% url 'restaurant:edit' restaurant.id %}" class="btn btn-sm btn-warning">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <button class="btn btn-sm btn-danger" onclick="deleteRestaurant('{{ restaurant.id }}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <p class="text-center">No restaurants found.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function deleteRestaurant(restaurantId) {
+        Swal.fire({
+            title: 'Delete Restaurant?',
+            text: "This will delete all associated tables and data!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/restaurant/' + restaurantId + '/delete/';
+            }
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,345 @@
+<!-- templates/inventory/raw_material_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Raw Materials{% endblock %}
+
+{% block content %}
+<style>
+    .status-badge {
+        padding: 3px 8px;
+        border-radius: 15px;
+        font-size: 11px;
+        font-weight: 500;
+        display: inline-block;
+    }
+    .status-low { background-color: #dc3545; color: white; }
+    .status-normal { background-color: #17a2b8; color: white; }
+    .status-full { background-color: #28a745; color: white; }
+    
+    .action-buttons .btn {
+        margin: 0 2px;
+        padding: 4px 8px;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .table th, .table td {
+        vertical-align: middle;
+        padding: 10px;
+    }
+    .summary-card {
+        transition: transform 0.2s;
+    }
+    .summary-card:hover {
+        transform: translateY(-3px);
+    }
+</style>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-cubes"></i> Raw Materials</h4>
+        <a href="{% url 'inventory:create_raw_material' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add Raw Material
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card summary-card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Materials</h6>
+                        <h3 class="mb-0">{{ raw_materials|length }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card bg-danger text-white">
+                    <div class="card-body text-center">
+                        <h6>Low Stock</h6>
+                        <h3 class="mb-0" id="lowStockCount">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6>Normal Stock</h6>
+                        <h3 class="mb-0" id="normalCount">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Value</h6>
+                        <h3 class="mb-0">$<span id="totalValue">0</span></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="row">
+                <div class="col-md-4">
+                    <select id="categoryFilter" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search by name or SKU...">
+                </div>
+                <div class="col-md-4">
+                    <button id="clearFilters" class="btn btn-secondary w-100">Clear Filters</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Materials Table -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>SKU</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Inventory</th>
+                        <th>Current Stock</th>
+                        <th>Unit</th>
+                        <th>Unit Cost</th>
+                        <th>Total Value</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="materialsTableBody">
+                    {% for material in raw_materials %}
+                    <tr class="material-row" data-category="{{ material.category.id }}" data-name="{{ material.name|lower }}" data-sku="{{ material.sku|lower }}">
+                        <td>{{ material.sku }}</td>
+                        <td><strong>{{ material.name }}</strong></td>
+                        <td>{{ material.category.name|default:'General' }}</td>
+                        <td>{{ material.inventory.name|default:'-' }}</td>
+                        <td class="{% if material.current_stock <= material.minimum_stock %}text-danger fw-bold{% endif %}">
+                            {{ material.current_stock }}
+                        </td>
+                        <td>{{ material.unit }}</td>
+                        <td>${{ material.unit_cost }}</td>
+                        <td>${{ material.current_stock|floatformat:2 }}</td>
+                        <td>
+                            {% if material.current_stock <= material.minimum_stock %}
+                            <span class="status-badge status-low">Low Stock</span>
+                            {% elif material.current_stock >= material.maximum_stock and material.maximum_stock > 0 %}
+                            <span class="status-badge status-full">Full</span>
+                            {% else %}
+                            <span class="status-badge status-normal">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td class="action-buttons">
+                            <button class="btn btn-sm btn-success" onclick="openAddStockModal('{{ material.id }}', '{{ material.name }}', {{ material.current_stock }})" title="Add Stock">
+                                <i class="fas fa-plus"></i> Add Stock
+                            </button>
+                            <a href="{% url 'inventory:edit_raw_material' material.id %}" class="btn btn-sm btn-warning" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if can_delete %}
+                            <button class="btn btn-sm btn-danger" onclick="deleteMaterial('{{ material.id }}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4">
+                            <i class="fas fa-box-open fa-3x text-muted mb-2 d-block"></i>
+                            No raw materials found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Stock Modal -->
+<div class="modal fade" id="addStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Add Stock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addStockForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="materialId" name="material_id">
+                    <div class="mb-3">
+                        <label class="form-label">Material</label>
+                        <input type="text" id="materialName" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Current Stock</label>
+                        <input type="text" id="currentStock" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Quantity to Add <span class="text-danger">*</span></label>
+                        <input type="number" name="quantity" id="quantity" class="form-control" step="0.001" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Unit Cost ($) <span class="text-danger">*</span></label>
+                        <input type="number" name="unit_cost" id="unitCost" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">New Stock After Addition</label>
+                        <input type="text" id="newStock" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reference Number</label>
+                        <input type="text" name="reference_number" id="referenceNumber" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentStockValue = 0;
+    
+    // Update summary statistics
+    function updateSummary() {
+        let lowStock = 0;
+        let normalStock = 0;
+        let totalValue = 0;
+        
+        document.querySelectorAll('#materialsTableBody .material-row').forEach(row => {
+            const stock = parseFloat(row.cells[4].innerText) || 0;
+            const statusText = row.cells[8].innerText;
+            const totalCell = row.cells[7].innerText;
+            const value = parseFloat(totalCell.replace('$', '')) || 0;
+            
+            if (statusText === 'Low Stock') lowStock++;
+            else if (statusText === 'Normal') normalStock++;
+            totalValue += value;
+        });
+        
+        document.getElementById('lowStockCount').innerText = lowStock;
+        document.getElementById('normalCount').innerText = normalStock;
+        document.getElementById('totalValue').innerText = totalValue.toFixed(2);
+    }
+    
+    // Calculate new stock
+    function calculateNewStock() {
+        const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+        const newStockValue = currentStockValue + quantity;
+        document.getElementById('newStock').value = newStockValue.toFixed(3);
+    }
+    
+    // Open add stock modal
+    function openAddStockModal(materialId, materialName, currentStock) {
+        currentStockValue = currentStock;
+        
+        document.getElementById('materialName').value = materialName;
+        document.getElementById('materialId').value = materialId;
+        document.getElementById('currentStock').value = currentStockValue;
+        document.getElementById('quantity').value = '';
+        document.getElementById('unitCost').value = '';
+        document.getElementById('referenceNumber').value = '';
+        document.getElementById('newStock').value = currentStockValue;
+        
+        const form = document.getElementById('addStockForm');
+        form.action = '/inventory/raw-materials/' + materialId + '/add-stock/';
+        
+        new bootstrap.Modal(document.getElementById('addStockModal')).show();
+    }
+    
+    // Quantity change event
+    document.getElementById('quantity').addEventListener('keyup', calculateNewStock);
+    document.getElementById('quantity').addEventListener('change', calculateNewStock);
+    
+    // Delete material
+    function deleteMaterial(materialId) {
+        Swal.fire({
+            title: 'Delete Material?',
+            text: "This will affect all recipes using this material!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/inventory/raw-materials/' + materialId + '/delete/';
+            }
+        });
+    }
+    
+    // Filter functionality
+    function filterTable() {
+        const category = document.getElementById('categoryFilter').value;
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        let visibleCount = 0;
+        
+        const rows = document.querySelectorAll('#materialsTableBody .material-row');
+        rows.forEach(row => {
+            let show = true;
+            const rowCategory = row.getAttribute('data-category');
+            const rowName = row.getAttribute('data-name');
+            const rowSku = row.getAttribute('data-sku');
+            
+            if (category && rowCategory !== category) {
+                show = false;
+            }
+            if (search && !rowName.includes(search) && !rowSku.includes(search)) {
+                show = false;
+            }
+            
+            if (show) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Show/hide no results message
+        const noResultsRow = document.getElementById('noResultsRow');
+        if (visibleCount === 0 && rows.length > 0) {
+            if (!noResultsRow) {
+                const tbody = document.getElementById('materialsTableBody');
+                const tr = document.createElement('tr');
+                tr.id = 'noResultsRow';
+                tr.innerHTML = '<td colspan="10" class="text-center py-4">No matching materials found</td>';
+                tbody.appendChild(tr);
+            }
+        } else if (noResultsRow) {
+            noResultsRow.remove();
+        }
+    }
+    
+    // Event listeners
+    document.getElementById('categoryFilter').addEventListener('change', filterTable);
+    document.getElementById('searchInput').addEventListener('keyup', filterTable);
+    document.getElementById('clearFilters').addEventListener('click', function() {
+        document.getElementById('categoryFilter').value = '';
+        document.getElementById('searchInput').value = '';
+        filterTable();
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSummary();
+        filterTable();
+    });
+</script>
+{% endblock %}

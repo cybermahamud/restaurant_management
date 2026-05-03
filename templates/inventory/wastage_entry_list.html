@@ -1,0 +1,31 @@
+<!-- templates/inventory/wastage_entry_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Wastage Records{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Wastage / Damage Records</h5>
+        <a href="{% url 'inventory:wastage_entry_create' %}" class="btn btn-light btn-sm float-end">+ New Wastage</a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-dark"><tr><th>Date</th><th>Restaurant</th><th>Item</th><th>Quantity</th><th>Reason</th><th>Notes</th></tr></thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.created_at|date:"Y-m-d H:i" }}</td
+                        <td>{{ entry.restaurant.name }}</td
+                        <td>{{ entry.menu_item.name }}</td
+                        <td>{{ entry.quantity|floatformat:2 }}</td
+                        <td>{{ entry.get_reason_display }}</td
+                        <td>{{ entry.notes|default:"-" }}</td
+                     </tr
+                    {% empty %}<tr><td colspan="6" class="text-center">No records found.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+<!-- templates/common/no_restaurant.html -->
+{% extends 'base/base.html' %}
+{% block title %}No Restaurant Assigned{% endblock %}
+
+{% block authenticated_content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-8">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> No Restaurant Assigned</h4>
+                </div>
+                <div class="card-body text-center">
+                    <i class="fas fa-store-slash fa-5x text-warning mb-3"></i>
+                    <h5>Your account doesn't have a restaurant assigned.</h5>
+                    <p class="text-muted">Please contact your administrator to assign a restaurant to your account.</p>
+                    <hr>
+                    <a href="{% url 'accounts:logout' %}" class="btn btn-primary">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

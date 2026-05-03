@@ -1,0 +1,141 @@
+<!-- templates/base/sidebar.html -->
+<nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                   href="{% url 'common:dashboard' %}">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+            </li>
+            
+            {% if user.role == 'admin' %}
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="collapse" href="#restaurantMenu" role="button">
+                    <i class="fas fa-store"></i> Restaurants
+                </a>
+                <div class="collapse ms-3" id="restaurantMenu">
+                    <a class="nav-link" href="{% url 'restaurant:list' %}">
+                        <i class="fas fa-list"></i> All Restaurants
+                    </a>
+                    <a class="nav-link" href="{% url 'restaurant:create' %}">
+                        <i class="fas fa-plus"></i> Add Restaurant
+                    </a>
+                </div>
+            </li>
+            
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="collapse" href="#userMenu" role="button">
+                    <i class="fas fa-users"></i> Users & Roles
+                </a>
+                <div class="collapse ms-3" id="userMenu">
+                    <a class="nav-link" href="{% url 'accounts:user_list' %}">
+                        <i class="fas fa-user"></i> System Users
+                    </a>
+                    <a class="nav-link" href="{% url 'accounts:employee_list' %}">
+                        <i class="fas fa-user-tie"></i> Employees
+                    </a>
+                    <a class="nav-link" href="{% url 'accounts:role_list' %}">
+                        <i class="fas fa-shield-alt"></i> Roles
+                    </a>
+                </div>
+            </li>
+            {% endif %}
+            
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="collapse" href="#menuMenu" role="button">
+                    <i class="fas fa-utensils"></i> Menu Management
+                </a>
+                <div class="collapse ms-3" id="menuMenu">
+                    <a class="nav-link" href="{% url 'restaurant:menu_list' %}">
+                        <i class="fas fa-list"></i> Menu Items
+                    </a>
+                    {% if user.role == 'admin' %}
+                    <a class="nav-link" href="{% url 'restaurant:create_menu_item' %}">
+                        <i class="fas fa-plus"></i> Add Menu Item
+                    </a>
+                    <a class="nav-link" href="{% url 'restaurant:set_menu_list' %}">
+                        <i class="fas fa-layer-group"></i> Set Menus
+                    </a>
+                    {% endif %}
+                </div>
+            </li>
+            
+            {% if user.role == 'staff' or user.role == 'manager' %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'orders:take_order' %}">
+                    <i class="fas fa-shopping-cart"></i> Take Order
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'orders:order_list' %}">
+                    <i class="fas fa-receipt"></i> Orders
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'restaurant:stock_status' %}">
+                    <i class="fas fa-boxes"></i> Stock Status
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'inventory:stock_requests' %}">
+                    <i class="fas fa-truck"></i> Stock Requests
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'orders:record_waste' %}">
+                    <i class="fas fa-trash-alt"></i> Record Waste
+                </a>
+            </li>
+            {% endif %}
+            
+            {% if user.role == 'store' %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'inventory:dashboard' %}">
+                    <i class="fas fa-chart-line"></i> Inventory Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'inventory:raw_material_list' %}">
+                    <i class="fas fa-cubes"></i> Raw Materials
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'inventory:stock_requests' %}">
+                    <i class="fas fa-clipboard-list"></i> Pending Requests
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'inventory:purchase_order_list' %}">
+                    <i class="fas fa-file-invoice"></i> Purchase Orders
+                </a>
+            </li>
+            {% endif %}
+            
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="collapse" href="#reportMenu" role="button">
+                    <i class="fas fa-chart-bar"></i> Reports
+                </a>
+                <div class="collapse ms-3" id="reportMenu">
+                    <a class="nav-link" href="{% url 'reports:sales_report' %}">
+                        <i class="fas fa-chart-line"></i> Sales Report
+                    </a>
+                    <a class="nav-link" href="{% url 'reports:profit_report' %}">
+                        <i class="fas fa-chart-pie"></i> Profit Report
+                    </a>
+                    <a class="nav-link" href="{% url 'reports:wastage_report' %}">
+                        <i class="fas fa-chart-line"></i> Wastage Report
+                    </a>
+                    <a class="nav-link" href="{% url 'reports:inventory_report' %}">
+                        <i class="fas fa-boxes"></i> Inventory Report
+                    </a>
+                    {% if user.role == 'admin' %}
+                    <a class="nav-link" href="{% url 'reports:business_summary' %}">
+                        <i class="fas fa-chart-simple"></i> Business Summary
+                    </a>
+                    {% endif %}
+                </div>
+            </li>
+        </ul>
+    </div>
+</nav>

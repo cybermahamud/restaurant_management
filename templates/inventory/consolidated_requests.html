@@ -1,0 +1,43 @@
+<!-- templates/inventory/consolidated_requests.html -->
+{% extends 'base/base.html' %}
+{% block title %}Consolidated Requests{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="fas fa-chart-line"></i> Consolidated Requests – {{ today|date:"Y-m-d" }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-dark">
+                    <tr><th>Menu Item</th><th>Total Requested</th><th>Restaurants</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    {% for agg in aggregated %}
+                    <tr>
+                        <td><strong>{{ agg.menu_item.name }}</strong></td>
+                        <td>{{ agg.total_requested|floatformat:2 }} {{ agg.menu_item.unit }}</td
+                        <td>
+                            <ul>
+                            {% for r in agg.restaurants %}
+                                <li>{{ r.restaurant }}: {{ r.quantity|floatformat:2 }}</li>
+                            {% endfor %}
+                            </ul>
+                        </td
+                        <td>
+                            <a href="{% url 'inventory:production_plan_create' %}" class="btn btn-sm btn-primary">Plan Production</a>
+                        </td
+                     </tr
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center">No requests found for today.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <a href="{% url 'inventory:production_plan_create' %}" class="btn btn-success">Create Production Plan</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

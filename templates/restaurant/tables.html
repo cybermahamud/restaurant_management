@@ -1,0 +1,360 @@
+<!-- templates/restaurant/tables.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Manage Tables - {{ restaurant.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        display: inline-block;
+    }
+    .status-available { background-color: #28a745; color: white; }
+    .status-occupied { background-color: #dc3545; color: white; }
+    .status-reserved { background-color: #ffc107; color: #000; }
+    .status-maintenance { background-color: #6c757d; color: white; }
+    .status-cleaning { background-color: #17a2b8; color: white; }
+    
+    .action-buttons .btn {
+        margin: 0 2px;
+        padding: 4px 8px;
+    }
+    .table-row:hover {
+        background-color: #f8f9fa;
+    }
+    .status-select {
+        width: 120px;
+        font-size: 13px;
+    }
+    .table-container {
+        overflow-x: auto;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #dee2e6;
+    }
+    th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+</style>
+
+<div class="row">
+    <!-- Left Side - Add New Table Form -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-plus"></i> Add New Table</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="addTableForm">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus"></i> Add Table
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Summary Card -->
+        <div class="card mt-3">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Total Tables:</span>
+                    <strong>{{ tables|length }}</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2 text-success">
+                    <span><i class="fas fa-check-circle"></i> Available:</span>
+                    <strong id="availableCount">0</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2 text-danger">
+                    <span><i class="fas fa-circle"></i> Occupied:</span>
+                    <strong id="occupiedCount">0</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2 text-warning">
+                    <span><i class="fas fa-clock"></i> Reserved:</span>
+                    <strong id="reservedCount">0</strong>
+                </div>
+                <div class="d-flex justify-content-between text-secondary">
+                    <span><i class="fas fa-tools"></i> Maintenance:</span>
+                    <strong id="maintenanceCount">0</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Side - Tables List View -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-chair"></i> Tables in {{ restaurant.name }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table class="table table-hover" id="tablesTable">
+                        <thead>
+                            <tr>
+                                <th>Table #</th>
+                                <th>Capacity</th>
+                                <th>Section</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for table in tables %}
+                            <tr class="table-row" data-table-id="{{ table.id }}" data-status="{{ table.status }}">
+                                <td>
+                                    <strong>Table {{ table.table_number }}</strong>
+                                    {% if table.qr_code %}
+                                    <br><small class="text-muted">QR Available</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ table.capacity }} persons</td>
+                                <td>{{ table.section|default:"Main Hall" }}</td>
+                                <td>
+                                    <select class="form-select form-select-sm status-select" data-table-id="{{ table.id }}" onchange="updateTableStatus('{{ table.id }}', this.value)">
+                                        <option value="available" {% if table.status == 'available' %}selected{% endif %}>Available</option>
+                                        <option value="occupied" {% if table.status == 'occupied' %}selected{% endif %}>Occupied</option>
+                                        <option value="reserved" {% if table.status == 'reserved' %}selected{% endif %}>Reserved</option>
+                                        <option value="maintenance" {% if table.status == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                                        <option value="cleaning" {% if table.status == 'cleaning' %}selected{% endif %}>Cleaning</option>
+                                    </select>
+                                </td>
+                                <td class="action-buttons">
+                                    <button class="btn btn-sm btn-info" onclick="viewTableDetails('{{ table.id }}', '{{ table.table_number }}', '{{ table.capacity }}', '{{ table.section|default:"Main Hall" }}', '{{ table.status }}')" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-warning" onclick="openEditModal('{{ table.id }}', '{{ table.table_number }}', '{{ table.capacity }}', '{{ table.section|default:"Main Hall" }}', '{{ table.status }}')" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteTable('{{ table.id }}')" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <i class="fas fa-chair fa-3x text-muted mb-2 d-block"></i>
+                                    No tables added yet. Use the form to add tables.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Table Modal -->
+<div class="modal fade" id="editTableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Edit Table</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="" id="editTableForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Table Number</label>
+                        <input type="number" name="table_number" id="editTableNumber" class="form-control" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Capacity (persons)</label>
+                        <input type="number" name="capacity" id="editCapacity" class="form-control" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Section</label>
+                        <select name="section" id="editSection" class="form-select">
+                            <option value="Main Hall">Main Hall</option>
+                            <option value="VIP Room">VIP Room</option>
+                            <option value="Outdoor">Outdoor</option>
+                            <option value="Balcony">Balcony</option>
+                            <option value="Bar Area">Bar Area</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" id="editStatus" class="form-select">
+                            <option value="available">Available</option>
+                            <option value="occupied">Occupied</option>
+                            <option value="reserved">Reserved</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="cleaning">Cleaning</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Update Table</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Table Details Modal -->
+<div class="modal fade" id="viewTableModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Table Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewTableBody">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Update summary counts
+    function updateSummary() {
+        let available = 0, occupied = 0, reserved = 0, maintenance = 0;
+        
+        $('.status-select').each(function() {
+            const status = $(this).val();
+            if (status === 'available') available++;
+            else if (status === 'occupied') occupied++;
+            else if (status === 'reserved') reserved++;
+            else if (status === 'maintenance') maintenance++;
+        });
+        
+        $('#availableCount').text(available);
+        $('#occupiedCount').text(occupied);
+        $('#reservedCount').text(reserved);
+        $('#maintenanceCount').text(maintenance);
+    }
+    
+    // Update table status via AJAX
+    function updateTableStatus(tableId, newStatus) {
+        Swal.fire({
+            title: 'Update Status?',
+            text: `Change table status to ${newStatus.toUpperCase()}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            confirmButtonText: 'Yes, update!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/restaurant/tables/' + tableId + '/update-status/',
+                    method: 'POST',
+                    data: {
+                        status: newStatus,
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Success', 'Table status updated', 'success');
+                            updateSummary();
+                        } else {
+                            Swal.fire('Error', 'Failed to update status', 'error');
+                            location.reload();
+                        }
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'Failed to update status', 'error');
+                        location.reload();
+                    }
+                });
+            } else {
+                location.reload();
+            }
+        });
+    }
+    
+    // Open edit modal with current values
+    function openEditModal(id, number, capacity, section, status) {
+        $('#editTableForm').attr('action', '/restaurant/tables/' + id + '/update/');
+        $('#editTableNumber').val(number);
+        $('#editCapacity').val(capacity);
+        $('#editSection').val(section);
+        $('#editStatus').val(status);
+        $('#editTableModal').modal('show');
+    }
+    
+    // View table details
+    function viewTableDetails(id, number, capacity, section, status) {
+        let statusColor = 'success';
+        let statusText = status.charAt(0).toUpperCase() + status.slice(1);
+        
+        if (status === 'occupied') statusColor = 'danger';
+        else if (status === 'reserved') statusColor = 'warning';
+        else if (status === 'maintenance') statusColor = 'secondary';
+        else if (status === 'cleaning') statusColor = 'info';
+        
+        const html = `
+            <table class="table table-borderless">
+                <tr><th>Table Number:</th><td><strong>Table ${number}</strong></td>
+                <tr><th>Capacity:</th><td>${capacity} persons</td>
+                <tr><th>Section:</th><td>${section}</td>
+                <tr><th>Status:</th><td><span class="status-badge status-${status}">${statusText}</span></td>
+                </table>
+            <div class="text-center mt-3">
+                <button class="btn btn-primary" onclick="generateQR('${id}')">
+                    <i class="fas fa-qrcode"></i> Generate QR Code
+                </button>
+            </div>
+        `;
+        
+        $('#viewTableBody').html(html);
+        $('#viewTableModal').modal('show');
+    }
+    
+    function generateQR(tableId) {
+        Swal.fire({
+            title: 'Generate QR Code?',
+            text: 'This will create a QR code for this table.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Generate'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/restaurant/tables/' + tableId + '/generate-qr/';
+            }
+        });
+    }
+    
+    function deleteTable(tableId) {
+        Swal.fire({
+            title: 'Delete Table?',
+            text: "This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/restaurant/tables/' + tableId + '/delete/';
+            }
+        });
+    }
+    
+    // Initialize summary on page load
+    $(document).ready(function() {
+        updateSummary();
+    });
+</script>
+{% endblock %}

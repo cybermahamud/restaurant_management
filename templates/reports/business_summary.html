@@ -1,0 +1,176 @@
+<!-- templates/reports/business_summary.html -->
+{% extends 'base/base.html' %}
+{% block title %}Business Summary{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h4><i class="fas fa-chart-simple"></i> Business Summary Report</h4>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row mb-4">
+            <div class="col-md-4">
+                <label>Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label>End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">Generate Report</button>
+            </div>
+        </form>
+        
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Restaurants</h6>
+                        <h3>{{ total_restaurants }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Employees</h6>
+                        <h3>{{ total_employees }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Revenue</h6>
+                        <h3>${{ total_revenue|floatformat:0 }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Profit</h6>
+                        <h3>${{ total_profit|floatformat:0 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>Financial Summary</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <tr>
+                                <td>Total Revenue:</td>
+                                <td class="text-end">${{ total_revenue|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td>Total Cost:</td>
+                                <td class="text-end text-danger">-${{ total_cost|floatformat:2 }}</td>
+                            </tr>
+                            <tr>
+                                <td>Wastage Cost:</td>
+                                <td class="text-end text-danger">-${{ wastage_cost|floatformat:2 }}</td>
+                            </tr>
+                            <tr class="table-success">
+                                <td><strong>Net Profit:</strong></td>
+                                <td class="text-end"><strong>${{ total_profit|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td>Profit Margin:</td>
+                                <td class="text-end">{{ profit_margin|floatformat:2 }}%</td>
+                            </tr>
+                            <tr>
+                                <td>Average Order Value:</td>
+                                <td class="text-end">${{ avg_order_value|floatformat:2 }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>Top 5 Products</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="topProductsChart" height="250"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h6>Restaurant-wise Breakdown</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Restaurant</th>
+                                <th>Orders</th>
+                                <th>Revenue</th>
+                                <th>Profit</th>
+                                <th>Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in restaurant_breakdown %}
+                            <tr>
+                                <td>{{ item.restaurant.name }}</td>
+                                <td>{{ item.orders }}</td>
+                                <td>${{ item.revenue|floatformat:2 }}</td>
+                                <td>${{ item.profit|floatformat:2 }}</td>
+                                <td>{{ item.margin|floatformat:1 }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <button class="btn btn-success" onclick="window.print()">
+                <i class="fas fa-print"></i> Print Report
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    const ctx = document.getElementById('topProductsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [{% for product in top_products %}'{{ product.menu_item__name|truncatechars:20 }}',{% endfor %}],
+            datasets: [{
+                label: 'Revenue',
+                data: [{% for product in top_products %}{{ product.total_revenue }},{% endfor %}],
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

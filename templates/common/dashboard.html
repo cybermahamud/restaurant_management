@@ -1,0 +1,50 @@
+<!-- templates/common/dashboard.html -->
+{% extends 'base/base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <h4>Welcome to Restaurant Management System</h4>
+                <p>You are logged in as: <strong>{{ user.get_full_name|default:user.username }}</strong></p>
+                <p>Role: <strong>{{ user.get_role_display }}</strong></p>
+                {% if user.is_superuser %}
+                <p><span class="badge bg-danger">Superuser</span> You have full system access</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x text-primary"></i>
+                    <h5 class="mt-2">Reports</h5>
+                    <a href="{% url 'reports:sales_report' %}" class="btn btn-sm btn-primary">View Reports</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-shopping-cart fa-3x text-success"></i>
+                    <h5 class="mt-2">Orders</h5>
+                    <a href="{% url 'orders:order_list' %}" class="btn btn-sm btn-success">View Orders</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-boxes fa-3x text-info"></i>
+                    <h5 class="mt-2">Inventory</h5>
+                    <a href="{% url 'inventory:raw_material_list' %}" class="btn btn-sm btn-info">View Inventory</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,111 @@
+<!-- templates/inventory/inventory_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Inventories{% endblock %}
+
+{% block content %}
+<style>
+    .inventory-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid;
+        border-radius: 10px;
+    }
+    .inventory-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .card-active {
+        border-left-color: #28a745;
+    }
+    .card-inactive {
+        border-left-color: #dc3545;
+        opacity: 0.7;
+    }
+    .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-warehouse"></i> Inventory Management</h2>
+        <a href="{% url 'inventory:create_inventory' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Inventory
+        </a>
+    </div>
+
+    <div class="row">
+        {% for inventory in inventories %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card inventory-card {% if inventory.is_active %}card-active{% else %}card-inactive{% endif %} h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-building text-primary"></i> {{ inventory.name }}
+                    </h5>
+                    <span class="badge {% if inventory.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                        {% if inventory.is_active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <p class="mb-1"><i class="fas fa-map-marker-alt text-muted"></i> <strong>Location:</strong> {{ inventory.location }}</p>
+                        <p class="mb-1"><i class="fas fa-user-tie text-muted"></i> <strong>Manager:</strong> {{ inventory.manager_name }}</p>
+                        <p class="mb-1"><i class="fas fa-phone text-muted"></i> <strong>Phone:</strong> {{ inventory.phone }}</p>
+                        <p class="mb-1"><i class="fas fa-envelope text-muted"></i> <strong>Email:</strong> {{ inventory.email }}</p>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-12">
+                            <div class="stat-number text-primary">{{ inventory.raw_materials.count }}</div>
+                            <small class="text-muted">Raw Materials</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white">
+                    <div class="btn-group w-100">
+                        <a href="{% url 'inventory:edit_inventory' inventory.id %}" class="btn btn-sm btn-warning">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <a href="{% url 'inventory:current_stock' %}?inventory={{ inventory.id }}" class="btn btn-sm btn-info">
+                            <i class="fas fa-cubes"></i> View Materials
+                        </a>
+                        <button class="btn btn-sm btn-danger" onclick="deleteInventory('{{ inventory.id }}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center py-5">
+                <i class="fas fa-warehouse fa-4x mb-3 d-block"></i>
+                <h4>No Inventories Found</h4>
+                <p>Get started by creating your first inventory.</p>
+                <a href="{% url 'inventory:create_inventory' %}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus"></i> Create Inventory
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    function deleteInventory(inventoryId) {
+        Swal.fire({
+            title: 'Delete Inventory?',
+            text: "This will delete all raw materials in this inventory! This action cannot be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/inventory/inventories/' + inventoryId + '/delete/';
+            }
+        });
+    }
+</script>
+{% endblock %}

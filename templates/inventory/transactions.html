@@ -1,0 +1,64 @@
+<!-- templates/inventory/transactions.html -->
+{% extends 'base/base.html' %}
+{% block title %}Stock Transactions{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-exchange-alt"></i> Stock Transactions</h4>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="transactionsTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Material</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Unit Cost</th>
+                        <th>Total Cost</th>
+                        <th>Reference</th>
+                        <th>By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                    <tr>
+                        <td>{{ transaction.created_at|date:"Y-m-d H:i" }}</td
+                        <td>{{ transaction.raw_material.name }}</td
+                        <td>
+                            <span class="badge 
+                                {% if transaction.transaction_type == 'purchase' %}bg-success
+                                {% elif transaction.transaction_type == 'usage' %}bg-info
+                                {% elif transaction.transaction_type == 'wastage' %}bg-danger
+                                {% else %}bg-warning{% endif %}">
+                                {{ transaction.get_transaction_type_display }}
+                            </span>
+                        </td
+                        <td>{{ transaction.quantity }} {{ transaction.raw_material.unit }}</td
+                        <td>${{ transaction.unit_cost }}</td
+                        <td>${{ transaction.total_cost|floatformat:2 }}</td
+                        <td>{{ transaction.reference_number }}</td
+                        <td>{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}</td
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center">No transactions found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('#transactionsTable').DataTable({
+            "order": [[0, "desc"]],
+            "pageLength": 25
+        });
+    });
+</script>
+{% endblock %}

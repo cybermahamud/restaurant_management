@@ -1,0 +1,72 @@
+<!-- templates/inventory/process_request.html -->
+{% extends 'base/base.html' %}
+{% block title %}Process Stock Request{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">Request Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><th>Restaurant:</th><td>{{ stock_request.restaurant.name }}</td></tr>
+                    <tr><th>Menu Item:</th><td>{{ stock_request.menu_item.name }}</td></tr>
+                    <tr><th>Quantity Requested:</th><td>{{ stock_request.quantity_requested }} pcs</td></tr>
+                    <tr><th>Requested At:</th><td>{{ stock_request.requested_at|date:"Y-m-d H:i" }}</td></tr>
+                    <tr><th>Notes:</th><td>{{ stock_request.notes|default:"-" }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Required Raw Materials</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Material</th><th>Required</th><th>Available</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for recipe in stock_request.menu_item.recipes.all %}
+                            <tr>
+                                <td>{{ recipe.raw_material.name }}</td>
+                                <td>{{ recipe.quantity_required|floatformat:2 }} {{ recipe.unit }}</td>
+                                <td>{{ recipe.raw_material.current_stock|floatformat:2 }} {{ recipe.unit }}</td>
+                                <td>
+                                    {% if recipe.raw_material.current_stock >= recipe.quantity_required %}
+                                    <span class="badge bg-success">Sufficient</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Insufficient</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <form method="post" class="mt-3">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" name="action" value="approve" class="btn btn-success">
+                            <i class="fas fa-check-circle"></i> Approve & Fulfill
+                        </button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger">
+                            <i class="fas fa-times-circle"></i> Reject Request
+                        </button>
+                        <a href="{% url 'inventory:stock_requests' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,165 @@
+<!-- templates/accounts/user_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}System Users{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-users"></i> System Users</h4>
+        <a href="{% url 'accounts:create_user' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add User
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Filters -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <select id="roleFilter" class="form-select">
+                    <option value="">All Roles</option>
+                    <option value="admin">Admin</option>
+                    <option value="staff">Staff</option>
+                    <option value="store">Store</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search by username or email...">
+            </div>
+            <div class="col-md-4">
+                <button id="clearFilters" class="btn btn-secondary w-100">Clear Filters</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    {% for user in users %}
+                    <tr data-role="{{ user.role }}" data-username="{{ user.username|lower }}" data-email="{{ user.email|lower }}">
+                        <td><strong>{{ user.username }}</strong></td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if user.role == 'admin' %}bg-danger
+                                {% elif user.role == 'staff' %}bg-primary
+                                {% else %}bg-warning{% endif %}">
+                                {{ user.get_role_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if user.restaurant %}
+                            <i class="fas fa-store"></i> {{ user.restaurant.name }}
+                            {% elif user.inventory %}
+                            <i class="fas fa-warehouse"></i> {{ user.inventory.name }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="action-buttons">
+                            <a href="{% url 'accounts:edit_user' user.id %}" class="btn btn-sm btn-warning" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'accounts:reset_user_password' user.id %}" class="btn btn-sm btn-info" title="Reset Password">
+                                <i class="fas fa-key"></i>
+                            </a>
+                            <button class="btn btn-sm btn-success" onclick="toggleStatus('{{ user.id }}')" title="Toggle Status">
+                                <i class="fas fa-power-off"></i>
+                            </button>
+                            {% if user.id != request.user.id %}
+                            <button class="btn btn-sm btn-danger" onclick="deleteUser('{{ user.id }}', '{{ user.username }}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">No users found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function filterUsers() {
+        const role = document.getElementById('roleFilter').value;
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#usersTableBody tr');
+        let visible = 0;
+        
+        rows.forEach(row => {
+            let show = true;
+            const userRole = row.getAttribute('data-role');
+            const userName = row.getAttribute('data-username');
+            const userEmail = row.getAttribute('data-email');
+            
+            if (role && userRole !== role) show = false;
+            if (search && !userName.includes(search) && !userEmail.includes(search)) show = false;
+            
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+    }
+    
+    function toggleStatus(userId) {
+        Swal.fire({
+            title: 'Toggle User Status?',
+            text: 'This will activate/deactivate the user account.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            confirmButtonText: 'Yes'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/accounts/users/' + userId + '/toggle-status/',
+                    method: 'POST',
+                    data: { csrfmiddlewaretoken: '{{ csrf_token }}' },
+                    success: function() { location.reload(); }
+                });
+            }
+        });
+    }
+    
+    function deleteUser(userId, username) {
+        Swal.fire({
+            title: 'Delete User?',
+            text: `Are you sure you want to delete "${username}"?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/accounts/users/' + userId + '/delete/';
+            }
+        });
+    }
+    
+    document.getElementById('roleFilter').addEventListener('change', filterUsers);
+    document.getElementById('searchInput').addEventListener('keyup', filterUsers);
+    document.getElementById('clearFilters').addEventListener('click', function() {
+        document.getElementById('roleFilter').value = '';
+        document.getElementById('searchInput').value = '';
+        filterUsers();
+    });
+</script>
+{% endblock %}

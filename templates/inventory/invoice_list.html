@@ -1,0 +1,46 @@
+<!-- templates/inventory/invoice_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Invoices{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Billing Invoices</h5>
+        <a href="{% url 'inventory:invoice_generate' %}" class="btn btn-light btn-sm float-end">+ New Invoice</a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Restaurant</th>
+                        <th>Period</th>
+                        <th>Total Amount</th>
+                        <th>Paid</th>
+                        <th>Due</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in invoices %}
+                    <tr>
+                        <td>{{ inv.invoice_number }}</td
+                        <td>{{ inv.restaurant.name }}</td
+                        <td>{{ inv.period_start|date:"Y-m-d" }} – {{ inv.period_end|date:"Y-m-d" }}</td
+                        <td>${{ inv.total_amount|floatformat:2 }}</td
+                        <td>${{ inv.paid_amount|floatformat:2 }}</td
+                        <td class="{% if inv.due_amount > 0 %}text-danger{% endif %}">${{ inv.due_amount|floatformat:2 }}</td
+                        <td>
+                            {% if inv.status == 'paid' %}<span class="badge bg-success">Paid</span>
+                            {% elif inv.status == 'overdue' %}<span class="badge bg-danger">Overdue</span>
+                            {% else %}<span class="badge bg-warning">Pending</span>{% endif %}
+                        </td
+                     </tr
+                    {% empty %}<tr><td colspan="7" class="text-center">No invoices generated.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

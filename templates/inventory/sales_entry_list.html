@@ -1,0 +1,31 @@
+<!-- templates/inventory/sales_entry_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Sales Entries{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Sales Entries</h5>
+        <a href="{% url 'inventory:sales_entry_create' %}" class="btn btn-light btn-sm float-end">+ New Sale</a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-dark"><tr><th>Date</th><th>Restaurant</th><th>Item</th><th>Quantity</th><th>Entered By</th><th>Notes</th></tr></thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.sale_date|date:"Y-m-d" }}</td
+                        <td>{{ entry.restaurant.name }}</td
+                        <td>{{ entry.menu_item.name }}</td
+                        <td>{{ entry.quantity_sold|floatformat:2 }}</td
+                        <td>{{ entry.entered_by.get_full_name|default:entry.entered_by.username }}</td
+                        <td>{{ entry.notes|default:"-" }}</td
+                     </tr
+                    {% empty %}<tr><td colspan="6" class="text-center">No entries found.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

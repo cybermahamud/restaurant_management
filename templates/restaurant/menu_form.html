@@ -1,0 +1,134 @@
+<!-- templates/restaurant/menu_form.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}{% if menu_item %}Edit Menu Item{% else %}Add Menu Item{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-{% if menu_item %}edit{% else %}utensils{% endif %}"></i> 
+                        {% if menu_item %}Edit Menu Item{% else %}Add New Menu Item{% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                {{ error }}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                {{ form.name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.category|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        {{ form.description|as_crispy_field }}
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.price|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.cost|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.preparation_time|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.has_recipe|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.is_available|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.quantity|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.reorder_level|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        {{ form.image|as_crispy_field }}
+                        
+                        {% if menu_item and menu_item.image %}
+                        <div class="mb-3">
+                            <label class="form-label">Current Image</label>
+                            <div>
+                                <img src="{{ menu_item.image.url }}" alt="{{ menu_item.name }}" style="max-width: 150px; max-height: 150px;">
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {% if menu_item %}Update{% else %}Save{% endif %} Menu Item
+                            </button>
+                            <a href="{% url 'restaurant:menu_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <a href="{% url 'restaurant:category_list' %}" class="btn btn-info">
+                                <i class="fas fa-tags"></i> Manage Categories
+                            </a>
+                            {% if menu_item and menu_item.has_recipe %}
+                            <a href="{% url 'restaurant:manage_recipes' menu_item.id %}" class="btn btn-warning">
+                                <i class="fas fa-utensils"></i> Manage Recipe
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Profit Preview Card -->
+            {% if menu_item and menu_item.cost > 0 %}
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Profit Preview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <small>Selling Price:</small>
+                            <h5 class="text-success">${{ menu_item.price|floatformat:2 }}</h5>
+                        </div>
+                        <div class="col-6">
+                            <small>Cost Price:</small>
+                            <h5 class="text-danger">${{ menu_item.cost|floatformat:2 }}</h5>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-6">
+                            <small>Profit per unit:</small>
+                            <h5 class="text-primary">${{ menu_item.price|add:menu_item.cost|floatformat:2 }}</h5>
+                        </div>
+                        <div class="col-6">
+                            <small>Profit Margin:</small>
+                            <h5 class="text-primary">{{ menu_item.profit_margin|floatformat:1 }}%</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

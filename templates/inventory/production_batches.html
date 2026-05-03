@@ -1,0 +1,50 @@
+<!-- templates/inventory/production_batches.html -->
+{% extends 'base/base.html' %}
+{% block title %}Production Batches{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-industry"></i> Production Batches</h5>
+        <a href="{% url 'inventory:consolidated_summary' %}" class="btn btn-light btn-sm">
+            <i class="fas fa-chart-line"></i> Create from Summary
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Batch #</th>
+                        <th>Menu Item</th>
+                        <th>Quantity</th>
+                        <th>Produced By</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for batch in batches %}
+                    <tr>
+                        <td><strong>{{ batch.batch_number }}</strong></td>
+                        <td>{{ batch.menu_item.name }}</td>
+                        <td>{{ batch.quantity_produced|floatformat:2 }} {{ batch.menu_item.unit|default:"pcs" }}</td>
+                        <td>{{ batch.produced_by.get_full_name|default:batch.produced_by.username }}</td>
+                        <td>{{ batch.produced_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <span class="badge bg-success">Produced</span>
+                        </td>
+                        <td>{{ batch.notes|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No production batches found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

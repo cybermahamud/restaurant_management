@@ -1,0 +1,115 @@
+<!-- templates/inventory/add_stock_form.html -->
+{% extends 'base/base.html' %}
+{% block title %}Add Stock - {{ material.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Add Stock: {{ material.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Current Stock Info -->
+                    <div class="alert alert-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Current Stock:</strong> 
+                                {{ material.current_stock|floatformat:2 }} {{ material.unit }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Current Unit Cost:</strong> 
+                                ${{ material.unit_cost|floatformat:2 }}
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <strong>Minimum Stock:</strong> 
+                                {{ material.minimum_stock|floatformat:2 }} {{ material.unit }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Current Value:</strong> 
+                                ${{ current_value|floatformat:2 }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Quantity to Add <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="quantity" class="form-control" step="any" min="0.001" required id="quantityInput">
+                                <span class="input-group-text">{{ material.unit }}</span>
+                            </div>
+                            <small class="text-muted">Enter the quantity you want to add to inventory</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Total Cost of Purchase <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="total_cost" class="form-control" step="0.01" min="0.01" required id="totalCostInput">
+                            </div>
+                            <small class="text-muted">The unit cost will be calculated automatically</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Reference Number (Optional)</label>
+                            <input type="text" name="reference_number" class="form-control" placeholder="e.g., PO-2024-001, Invoice #123, Bill No.">
+                            <small class="text-muted">Reference number for tracking purchase history</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="Any additional information about this stock addition..."></textarea>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Add Stock
+                            </button>
+                            <a href="{% url 'inventory:stock_detail' material.id %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                    
+                    <hr class="mt-4">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle"></i> <strong>Note:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>The system will automatically update the average unit cost</li>
+                            <li>New total value = Old total value + Purchase cost</li>
+                            <li>New unit cost = New total value / New total quantity</li>
+                            <li>A stock transaction record will be created for audit trail</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Calculate and show unit cost in real-time (optional feature)
+    const quantityInput = document.getElementById('quantityInput');
+    const totalCostInput = document.getElementById('totalCostInput');
+    
+    function calculateUnitCost() {
+        const quantity = parseFloat(quantityInput.value);
+        const totalCost = parseFloat(totalCostInput.value);
+        
+        if (quantity > 0 && totalCost > 0) {
+            const unitCost = totalCost / quantity;
+            console.log(`Unit cost will be: $${unitCost.toFixed(4)}`);
+        }
+    }
+    
+    if (quantityInput && totalCostInput) {
+        quantityInput.addEventListener('input', calculateUnitCost);
+        totalCostInput.addEventListener('input', calculateUnitCost);
+    }
+</script>
+{% endblock %}

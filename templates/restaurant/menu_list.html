@@ -1,0 +1,303 @@
+<!-- templates/restaurant/menu_list.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Menu Items{% endblock %}
+
+{% block content %}
+<style>
+    .status-available {
+        background-color: #28a745;
+        color: white;
+        padding: 3px 10px;
+        border-radius: 15px;
+        font-size: 11px;
+        display: inline-block;
+    }
+    .status-unavailable {
+        background-color: #dc3545;
+        color: white;
+        padding: 3px 10px;
+        border-radius: 15px;
+        font-size: 11px;
+        display: inline-block;
+    }
+    .action-buttons {
+        display: inline-flex;
+        gap: 5px;
+        white-space: nowrap;
+    }
+    .action-buttons .btn {
+        padding: 4px 8px;
+        font-size: 12px;
+        margin: 0;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    .category-badge {
+        background: #e9ecef;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 3px;
+    }
+    .category-badge .count {
+        background: #6c757d;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-size: 10px;
+    }
+    .table td, .table th {
+        vertical-align: middle;
+        padding: 10px 8px;
+    }
+    .menu-row:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Header with Add Button -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item"><a href="{% url 'common:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Menu Items</li>
+                        </ol>
+                    </nav>
+                    <h3 class="mt-2"><i class="fas fa-utensils"></i> Menu Items</h3>
+                </div>
+                <div>
+                    <a href="{% url 'restaurant:create_menu_item' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Menu Item
+                    </a>
+                    <a href="{% url 'restaurant:category_list' %}" class="btn btn-info">
+                        <i class="fas fa-tags"></i> Manage Categories
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Categories Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-tags"></i> Categories</h5>
+                </div>
+                <div class="card-body">
+                    <div id="categoryList">
+                        {% if categories %}
+                            <div class="category-badge mb-2" style="cursor: pointer;" onclick="filterByCategory('all')">
+                                <i class="fas fa-list"></i> All Categories
+                                <span class="count">{{ menu_items.count }}</span>
+                            </div>
+                            {% for category in categories %}
+                            <div class="category-badge mb-2" style="cursor: pointer;" onclick="filterByCategory('{{ category.id }}')">
+                                {{ category.name }}
+                                <span class="count">{{ category.items.count }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-muted text-center">
+                            <i class="fas fa-info-circle"></i> No categories yet.
+                            <br>
+                            <a href="{% url 'restaurant:category_list' %}" class="btn btn-sm btn-primary mt-2">
+                                <i class="fas fa-plus"></i> Add Category
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Menu Items Table -->
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> All Menu Items</h5>
+                    <span class="badge bg-light text-dark">{{ menu_items.count }} Items</span>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <div class="filter-section">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <input type="text" id="searchInput" class="form-control" placeholder="Search by name...">
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-secondary w-100" onclick="resetFilters()">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th style="width: 25%">Name</th>
+                                    <th style="width: 15%">Category</th>
+                                    <th style="width: 12%">Price</th>
+                                    <th style="width: 12%">Prep Time</th>
+                                    <th style="width: 12%">Status</th>
+                                    <th style="width: 24%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="menuTableBody">
+                                {% for item in menu_items %}
+                                <tr class="menu-row" data-category="{{ item.category.id }}" data-name="{{ item.name|lower }}">
+                                    <td>
+                                        <strong>{{ item.name }}</strong>
+                                        {% if item.has_recipe %}
+                                        <br><span class="badge bg-info mt-1"><i class="fas fa-check"></i> Recipe</span>
+                                        {% endif %}
+                                        {% if item.is_vegetarian %}
+                                        <br><span class="badge bg-success mt-1"><i class="fas fa-leaf"></i> Veg</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.category.name }}</td>
+                                    <td>
+                                        <span class="fw-bold text-success">${{ item.price }}</span>
+                                        {% if item.cost %}
+                                        <br><small class="text-muted">Cost: ${{ item.cost }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.preparation_time }} min</td>
+                                    <td>
+                                        {% if item.is_available %}
+                                        <span class="status-available">Available</span>
+                                        {% else %}
+                                        <span class="status-unavailable">Not Available</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="{% url 'restaurant:edit_menu_item' item.id %}" class="btn btn-sm btn-warning" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'restaurant:manage_recipes' item.id %}" class="btn btn-sm btn-info" title="Manage Recipes">
+                                                <i class="fas fa-utensils"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteMenuItem('{{ item.id }}')" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="fas fa-utensils fa-3x text-muted mb-3 d-block"></i>
+                                        <h5>No Menu Items Found</h5>
+                                        <p class="text-muted">Click "Add Menu Item" to get started.</p>
+                                        <a href="{% url 'restaurant:create_menu_item' %}" class="btn btn-primary mt-2">
+                                            <i class="fas fa-plus"></i> Add Menu Item
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentCategory = 'all';
+    
+    // Filter by category
+    function filterByCategory(categoryId) {
+        currentCategory = categoryId;
+        applyFilters();
+    }
+    
+    // Apply all filters
+    function applyFilters() {
+        const searchInput = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#menuTableBody tr');
+        
+        rows.forEach(row => {
+            if (row.querySelector('td[colspan]')) return;
+            
+            const category = row.getAttribute('data-category');
+            const name = row.getAttribute('data-name');
+            
+            let show = true;
+            
+            // Category filter
+            if (currentCategory !== 'all' && category !== currentCategory) {
+                show = false;
+            }
+            
+            // Search filter
+            if (searchInput && name && !name.includes(searchInput)) {
+                show = false;
+            }
+            
+            row.style.display = show ? '' : 'none';
+        });
+    }
+    
+    function resetFilters() {
+        currentCategory = 'all';
+        document.getElementById('searchInput').value = '';
+        applyFilters();
+    }
+    
+    function deleteMenuItem(itemId) {
+        Swal.fire({
+            title: 'Delete Menu Item?',
+            text: "This will remove it from all orders and set menus!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/restaurant/menu/' + itemId + '/delete/';
+            }
+        });
+    }
+    
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keyup', applyFilters);
+        }
+        
+        // Highlight active category
+        {% if categories %}
+        // Show message if no categories
+        {% else %}
+        Swal.fire({
+            title: 'No Categories Found',
+            text: 'Please add at least one category before creating menu items.',
+            icon: 'info',
+            confirmButtonText: 'Add Category'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = "{% url 'restaurant:category_list' %}";
+            }
+        });
+        {% endif %}
+    });
+</script>
+{% endblock %}

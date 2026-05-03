@@ -1,0 +1,110 @@
+<!-- templates/inventory/dashboard.html -->
+{% extends 'base/base.html' %}
+{% block title %}Inventory Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-warehouse"></i> Inventory Dashboard</h2>
+        <div>
+            <a href="{% url 'inventory:current_stock' %}" class="btn btn-outline-primary">
+                <i class="fas fa-boxes"></i> View Stock
+            </a>
+            <a href="{% url 'inventory:stock_requests_list' %}" class="btn btn-outline-warning">
+                <i class="fas fa-clipboard-list"></i> Stock Requests
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Materials</h6>
+                    <h2 class="mb-0">{{ total_materials|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Low Stock Items</h6>
+                    <h2 class="mb-0">{{ low_stock_count|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Pending Requests</h6>
+                    <h2 class="mb-0">{{ pending_requests|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Value</h6>
+                    <h2 class="mb-0">${{ total_value|floatformat:2|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Transactions -->
+    <div class="card">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-history"></i> Recent Stock Transactions</h5>
+        </div>
+        <div class="card-body">
+            {% if recent_transactions %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Material</th>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Total Cost</th>
+                            <th>Unit Price</th>
+                            <th>By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in recent_transactions %}
+                        <tr>
+                            <td>{{ transaction.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>{{ transaction.raw_material.name }}</td>
+                            <td>
+                                {% if transaction.transaction_type == 'purchase' %}
+                                <span class="badge bg-success">Purchase</span>
+                                {% elif transaction.transaction_type == 'usage' %}
+                                <span class="badge bg-info">Usage</span>
+                                {% elif transaction.transaction_type == 'wastage' %}
+                                <span class="badge bg-danger">Wastage</span>
+                                {% elif transaction.transaction_type == 'adjustment' %}
+                                <span class="badge bg-warning">Adjustment</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ transaction.transaction_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ transaction.quantity|floatformat:2 }} {{ transaction.raw_material.unit }}</td>
+                            <td>${{ transaction.total_cost|floatformat:2 }}</td>
+                            <td>${{ transaction.unit_cost|floatformat:2 }}</td>
+                            <td>{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center mb-0">
+                <i class="fas fa-info-circle"></i> No transactions yet
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

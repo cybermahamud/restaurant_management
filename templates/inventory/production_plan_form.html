@@ -1,0 +1,48 @@
+<!-- templates/inventory/production_plan_form.html -->
+{% extends 'base/base.html' %}
+{% block title %}Production Plan{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-industry"></i> Production Plan – {{ plan.plan_date|date:"Y-m-d" }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> Based on today's consolidated requests. Adjust quantities as needed.
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Menu Item</th>
+                            <th>Total Requested</th>
+                            <th>Planned Quantity</th>
+                            <th>Buffer (%)</th>
+                            <th>Note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for menu_item, requested in aggregated.items %}
+                        <tr>
+                            <td><strong>{{ menu_item.name }}</strong> <input type="hidden" name="item_id_{{ menu_item.id }}" value="{{ menu_item.id }}"></td
+                            <td>{{ requested|floatformat:2 }} {{ menu_item.unit }}</td
+                            <td><input type="number" name="planned_{{ menu_item.id }}" class="form-control" step="0.01" value="{{ requested|floatformat:2 }}"></td
+                            <td><input type="number" name="buffer_{{ menu_item.id }}" class="form-control" step="0.01" value="0"></td
+                            <td><input type="text" name="notes_{{ menu_item.id }}" class="form-control" placeholder="Optional"></td
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {{ form.notes }}
+            <div class="mt-3">
+                <button type="submit" class="btn btn-success">Save & Approve Plan</button>
+                <a href="{% url 'inventory:consolidated_requests' %}" class="btn btn-secondary">Back</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

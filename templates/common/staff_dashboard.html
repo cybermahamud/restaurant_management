@@ -1,0 +1,397 @@
+<!-- templates/common/staff_dashboard.html -->
+{% extends 'base/base.html' %}
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .stats-card {
+        border: none;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .stats-icon {
+        font-size: 2.5rem;
+        opacity: 0.3;
+        position: absolute;
+        right: 20px;
+        bottom: 20px;
+    }
+    .table-card {
+        border-radius: 15px;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .table-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    }
+    .table-occupied {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    .status-occupied { background: #dc3545; color: white; }
+    .status-available { background: #28a745; color: white; }
+    .status-reserved { background: #ffc107; color: #000; }
+    
+    .quick-action-btn {
+        border-radius: 12px;
+        padding: 12px;
+        transition: all 0.3s;
+        text-align: center;
+    }
+    .quick-action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+</style>
+
+{% if no_restaurant %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-8">
+            <div class="card border-warning shadow-lg">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0"><i class="fas fa-exclamation-triangle"></i> No Restaurant Assigned</h4>
+                </div>
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-store-slash fa-5x text-warning mb-3"></i>
+                    <h5>{{ message }}</h5>
+                    <p class="text-muted">Please contact your administrator to assign a restaurant to your account.</p>
+                    <hr>
+                    <a href="{% url 'accounts:logout' %}" class="btn btn-primary">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="container-fluid">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div>
+                    <h2 class="mb-1">👋 Welcome back, {{ user.get_full_name|default:user.username }}!</h2>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-store"></i> {{ restaurant.name }} 
+                        <span class="mx-2">•</span>
+                        <i class="fas fa-clock"></i> {{ now|date:"l, F d, Y" }}
+                    </p>
+                </div>
+                <div class="mt-2 mt-md-0">
+                    <a href="{% url 'orders:take_order' %}" class="btn btn-success btn-lg shadow">
+                        <i class="fas fa-plus-circle"></i> New Order
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-2">
+            <div class="quick-action-btn bg-white border">
+                <a href="{% url 'orders:order_list' %}" class="text-decoration-none">
+                    <i class="fas fa-list fa-2x text-primary mb-2 d-block"></i>
+                    <strong>View All Orders</strong>
+                    <small class="d-block text-muted">Manage orders</small>
+                </a>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-2">
+            <div class="quick-action-btn bg-white border">
+                <a href="{% url 'restaurant:menu_list' %}" class="text-decoration-none">
+                    <i class="fas fa-utensils fa-2x text-success mb-2 d-block"></i>
+                    <strong>View Menu</strong>
+                    <small class="d-block text-muted">Check menu items</small>
+                </a>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-2">
+            <div class="quick-action-btn bg-white border">
+                <a href="{% url 'restaurant:manage_tables' restaurant.id %}" class="text-decoration-none">
+                    <i class="fas fa-chair fa-2x text-info mb-2 d-block"></i>
+                    <strong>Manage Tables</strong>
+                    <small class="d-block text-muted">Update table status</small>
+                </a>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-2">
+            <div class="quick-action-btn bg-white border">
+                <a href="{% url 'restaurant:stock_status' %}" class="text-decoration-none">
+                    <i class="fas fa-boxes fa-2x text-warning mb-2 d-block"></i>
+                    <strong>Stock Status</strong>
+                    <small class="d-block text-muted">Check inventory</small>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stats-card bg-primary text-white">
+                <div class="card-body position-relative">
+                    <i class="fas fa-dollar-sign stats-icon"></i>
+                    <h6 class="mb-1">Total Income</h6>
+                    <h2 class="mb-0">${{ total_income|floatformat:2|default:"0.00" }}</h2>
+                    <small>Lifetime revenue</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stats-card bg-success text-white">
+                <div class="card-body position-relative">
+                    <i class="fas fa-check-circle stats-icon"></i>
+                    <h6 class="mb-1">Completed Orders</h6>
+                    <h2 class="mb-0">{{ completed_orders_count|default:0 }}</h2>
+                    <small>Successfully delivered</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stats-card bg-info text-white">
+                <div class="card-body position-relative">
+                    <i class="fas fa-chair stats-icon"></i>
+                    <h6 class="mb-1">Available Tables</h6>
+                    <h2 class="mb-0">{{ available_tables|default:0 }}</h2>
+                    <small>Ready for customers</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6 mb-3">
+            <div class="card stats-card bg-warning text-white">
+                <div class="card-body position-relative">
+                    <i class="fas fa-clock stats-icon"></i>
+                    <h6 class="mb-1">Active Orders</h6>
+                    <h2 class="mb-0">{{ active_orders|default:0 }}</h2>
+                    <small>In progress</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Occupied Tables Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chair"></i> Occupied Tables 
+                        <span class="badge bg-light text-dark ms-2">{{ occupied_tables_with_orders|length }}</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if occupied_tables_with_orders %}
+                    <div class="row">
+                        {% for table_data in occupied_tables_with_orders %}
+                        <div class="col-md-3 col-sm-4 col-6 mb-3">
+                            <div class="card table-card table-occupied h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-chair fa-3x mb-2"></i>
+                                    <h3 class="card-title mb-1">Table {{ table_data.table.table_number }}</h3>
+                                    <p class="small mb-2">Capacity: {{ table_data.table.capacity }} seats</p>
+                                    <div class="mb-2">
+                                        <span class="status-badge status-occupied">Occupied</span>
+                                    </div>
+                                    <hr class="my-2">
+                                    <p class="small mb-1">
+                                        <strong>Order #{{ table_data.order.order_number|truncatechars:10 }}</strong>
+                                    </p>
+                                    <p class="mb-2">Total: ${{ table_data.order.total_amount|floatformat:2 }}</p>
+                                    <button class="btn btn-sm btn-light mt-2" onclick="window.location.href='{% url 'orders:edit_order' table_data.order.id %}'">
+                                        <i class="fas fa-edit"></i> Edit Order
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-smile fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Occupied Tables</h5>
+                        <p class="text-muted">All tables are available! Create a new order to get started.</p>
+                        <a href="{% url 'orders:take_order' %}" class="btn btn-success mt-2">
+                            <i class="fas fa-plus"></i> Create New Order
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Low Stock Alert Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> Low Stock Alert
+                        {% if low_stock_items %}
+                        <span class="badge bg-warning text-dark ms-2">{{ low_stock_items|length }} Items Need Attention</span>
+                        {% endif %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if low_stock_items %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="fas fa-box"></i> Item Name</th>
+                                    <th><i class="fas fa-chart-line"></i> Current Stock</th>
+                                    <th><i class="fas fa-flag-checkered"></i> Minimum Stock</th>
+                                    <th><i class="fas fa-chart-simple"></i> Status</th>
+                                    <th><i class="fas fa-cog"></i> Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in low_stock_items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.name }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ item.unit }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-danger">{{ item.current_stock|floatformat:0 }}</span>
+                                        <div class="progress" style="height: 5px;">
+                                            {% with percentage=item.current_stock|floatformat:0|add:0 %}
+                                            {% widthratio percentage item.minimum_stock|floatformat:0|add:0 100 as stock_percentage %}
+                                            <div class="progress-bar bg-danger" style="width: {% if stock_percentage > 100 %}100{% else %}{{ stock_percentage }}{% endif %}%"></div>
+                                            {% endwith %}
+                                        </div>
+                                    </td>
+                                    <td>{{ item.minimum_stock|floatformat:0 }} {{ item.unit }}</td>
+                                    <td>
+                                        <span class="status-badge status-occupied">Critical</span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning" onclick="requestStock('{{ item.id }}', '{{ item.name|escapejs }}')">
+                                            <i class="fas fa-truck"></i> Request Stock
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5 class="text-success">All Stock Levels Are Good!</h5>
+                        <p class="text-muted">No items are below minimum stock level.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function requestStock(itemId, itemName) {
+    Swal.fire({
+        title: 'Request Stock',
+        html: `Enter quantity to request for <strong>${itemName}</strong>:`,
+        icon: 'question',
+        input: 'number',
+        inputAttributes: {
+            min: 1,
+            step: 1,
+            placeholder: 'Enter quantity'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Submit Request',
+        cancelButtonText: 'Cancel',
+        preConfirm: (quantity) => {
+            if (!quantity || quantity < 1) {
+                Swal.showValidationMessage('Please enter a valid quantity (minimum 1)');
+                return false;
+            }
+            return quantity;
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            // Show loading
+            Swal.fire({
+                title: 'Submitting...',
+                text: 'Please wait',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            fetch('/inventory/request-stock/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    item_id: itemId,
+                    quantity: result.value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: 'Success!',
+                        text: 'Stock request submitted successfully.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error!', data.error || 'Failed to submit request.', 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error!', 'Network error occurred. Please try again.', 'error');
+            });
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Auto-refresh every 30 seconds for real-time updates
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endif %}
+{% endblock %}

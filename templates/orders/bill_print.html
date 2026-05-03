@@ -1,0 +1,59 @@
+<!-- templates/orders/bill_print.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bill - {{ order.order_number }}</title>
+    <style>
+        body { font-family: 'Courier New', monospace; padding: 20px; max-width: 300px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px dashed #000; padding-bottom: 10px; }
+        .restaurant-name { font-size: 18px; font-weight: bold; }
+        .items { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .items th { text-align: left; border-bottom: 1px solid #000; }
+        .items td { padding: 5px 0; }
+        .total-row { border-top: 1px solid #000; margin-top: 10px; padding-top: 10px; }
+        .footer { text-align: center; margin-top: 30px; font-size: 12px; }
+        @media print { body { margin: 0; padding: 10px; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="restaurant-name">{{ order.restaurant.name }}</div>
+        <div>{{ order.restaurant.address }}</div>
+        <div>Tel: {{ order.restaurant.phone }}</div>
+        <div>BILL</div>
+    </div>
+    
+    <div>
+        <div><strong>Order #:</strong> {{ order.order_number }}</div>
+        <div><strong>Date:</strong> {{ order.created_at|date:"Y-m-d H:i" }}</div>
+        <div><strong>Table:</strong> {% if order.table %}Table {{ order.table.table_number }}{% else %}Takeaway{% endif %}</div>
+        <div><strong>Server:</strong> {{ order.staff.get_full_name|default:order.staff.username }}</div>
+    </div>
+    
+    <table class="items">
+        <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+        {% for item in order.items.all %}
+        <tr>
+            <td>{{ item.menu_item.name }}</td>
+            <td class="text-center">{{ item.quantity }}</td>
+            <td class="text-end">${{ item.unit_price|floatformat:2 }}</td>
+            <td class="text-end">${{ item.total_price|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    
+    <div class="total-row">
+        <div class="d-flex justify-content-between"><span>Subtotal:</span><span>${{ order.subtotal|floatformat:2 }}</span></div>
+        {% if order.discount_amount > 0 %}<div class="d-flex justify-content-between text-success"><span>Discount:</span><span>-${{ order.discount_amount|floatformat:2 }}</span></div>{% endif %}
+        <div class="d-flex justify-content-between"><span>Tax (5%):</span><span>${{ order.tax_amount|floatformat:2 }}</span></div>
+        <div class="d-flex justify-content-between fw-bold"><span>TOTAL:</span><span>${{ order.total_amount|floatformat:2 }}</span></div>
+    </div>
+    
+    <div class="footer">
+        <p>Thank you for dining with us!</p>
+        <p>Please come again</p>
+    </div>
+    
+    <script>window.print(); setTimeout(() => window.close(), 1000);</script>
+</body>
+</html>

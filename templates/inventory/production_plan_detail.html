@@ -1,0 +1,34 @@
+<!-- templates/inventory/production_plan_detail.html -->
+{% extends 'base/base.html' %}
+{% block title %}Production Plan – {{ plan.plan_date }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">Production Plan – {{ plan.plan_date|date:"Y-m-d" }}</h5>
+    </div>
+    <div class="card-body">
+        <h6>Items</h6>
+        <div class="table-responsive">
+            <table class="table">
+                <thead><tr><th>Item</th><th>Planned</th><th>Buffer</th><th>Batches</th><th>Action</th></tr></thead>
+                <tbody>
+                    {% for item in plan.items.all %}
+                    <tr>
+                        <td>{{ item.menu_item.name }}</td
+                        <td>{{ item.planned_quantity|floatformat:2 }}</td
+                        <td>{{ item.buffer_quantity|floatformat:2 }}</td
+                        <td>
+                            <ul>{% for batch in item.batches.all %}<li>Batch {{ batch.batch_number }}: {{ batch.actual_quantity|floatformat:2 }} ({{ batch.status }})</li>{% empty %}No batches{% endfor %}</ul>
+                        </td
+                        <td>
+                            <a href="{% url 'inventory:production_batch_create' item.id %}" class="btn btn-sm btn-primary">Add Batch</a>
+                        </td
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,250 @@
+<!-- templates/reports/advanced_report.html -->
+{% extends 'base/base.html' %}
+{% block title %}Advanced Report{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        <h4 class="mb-0"><i class="fas fa-filter"></i> Advanced Report</h4>
+    </div>
+    <div class="card-body">
+        <!-- Filters -->
+        <form method="get" class="row g-3 mb-4">
+            <div class="col-md-3">
+                <label>Start Date</label>
+                <input type="date" name="start_date" class="form-control" value="{{ filters.start_date }}">
+            </div>
+            <div class="col-md-3">
+                <label>End Date</label>
+                <input type="date" name="end_date" class="form-control" value="{{ filters.end_date }}">
+            </div>
+            <div class="col-md-3">
+                <label>Restaurant</label>
+                <select name="restaurant" class="form-select">
+                    <option value="">All Restaurants</option>
+                    {% for restaurant in restaurants %}
+                    <option value="{{ restaurant.id }}" {% if filters.restaurant_id|stringformat:"s" == restaurant.id|stringformat:"s" %}selected{% endif %}>
+                        {{ restaurant.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Min Amount</label>
+                <input type="number" name="min_amount" class="form-control" value="{{ filters.min_amount }}" step="0.01">
+            </div>
+            <div class="col-md-3">
+                <label>Max Amount</label>
+                <input type="number" name="max_amount" class="form-control" value="{{ filters.max_amount }}" step="0.01">
+            </div>
+            <div class="col-md-3">
+                <label>Order Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All</option>
+                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="confirmed" {% if filters.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                    <option value="preparing" {% if filters.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                    <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Payment Status</label>
+                <select name="payment_status" class="form-select">
+                    <option value="">All</option>
+                    <option value="pending" {% if filters.payment_status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="partial" {% if filters.payment_status == 'partial' %}selected{% endif %}>Partial</option>
+                    <option value="paid" {% if filters.payment_status == 'paid' %}selected{% endif %}>Paid</option>
+                </select>
+            </div>
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Apply Filters
+                </button>
+                <a href="{% url 'reports:advanced_report' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Clear Filters
+                </a>
+            </div>
+        </form>
+        
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Sales</h6>
+                        <h3>${{ total_sales|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h6>Total Orders</h6>
+                        <h3>{{ total_orders }}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h6>Average Order Value</h6>
+                        <h3>${{ avg_order_value|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>Sales by Restaurant</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="restaurantChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>Sales by Status</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="statusChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Top Items -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6>Top Selling Items</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr><th>Item</th><th>Quantity Sold</th><th>Revenue</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_items %}
+                            <tr>
+                                <td>{{ item.menu_item__name }}</td>
+                                <td>{{ item.total_quantity }}</td>
+                                <td>${{ item.total_revenue|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Orders Table -->
+        <div class="card">
+            <div class="card-header">
+                <h6>Orders</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="ordersTable">
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Restaurant</th>
+                                <th>Table</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                                <th>Payment</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                            <tr>
+                                <td>{{ order.order_number }}</td>
+                                <td>{{ order.restaurant.name }}</td>
+                                <td>{% if order.table %}Table {{ order.table.table_number }}{% else %}Takeaway{% endif %}</td>
+                                <td>${{ order.total_amount|floatformat:2 }}</td>
+                                <td>{{ order.get_status_display }}</td>
+                                <td>{{ order.get_payment_status_display }}</td>
+                                <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Export Button -->
+        <div class="mt-3">
+            <a href="{% url 'reports:export_report' 'sales' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                <i class="fas fa-file-excel"></i> Export to Excel
+            </a>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('#ordersTable').DataTable({
+            "order": [[6, "desc"]],
+            "pageLength": 25
+        });
+    });
+    
+    // Restaurant Chart
+    const restaurantCtx = document.getElementById('restaurantChart').getContext('2d');
+    new Chart(restaurantCtx, {
+        type: 'bar',
+        data: {
+            labels: [{% for item in by_restaurant %}'{{ item.restaurant__name }}',{% endfor %}],
+            datasets: [{
+                label: 'Sales',
+                data: [{% for item in by_restaurant %}{{ item.total }},{% endfor %}],
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Status Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: [{% for item in by_status %}'{{ item.status }}',{% endfor %}],
+            datasets: [{
+                data: [{% for item in by_status %}{{ item.total }},{% endfor %}],
+                backgroundColor: ['#28a745', '#ffc107', '#17a2b8', '#007bff', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}

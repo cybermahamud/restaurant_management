@@ -1,0 +1,124 @@
+<!-- templates/reports/reports_dashboard.html -->
+{% extends 'base/base.html' %}
+{% block title %}Reports Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4"><i class="fas fa-chart-bar"></i> Reports Dashboard</h2>
+    
+    <div class="row">
+        <!-- Sales Reports Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> Sales Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{% url 'reports:sales_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-line"></i> Sales Report
+                            <small class="text-muted d-block">View sales with date filters</small>
+                        </a>
+                        <a href="{% url 'reports:daily_sales_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-calendar-day"></i> Daily Sales Report
+                            <small class="text-muted d-block">View sales for specific day</small>
+                        </a>
+                        <a href="{% url 'reports:monthly_sales_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-calendar-month"></i> Monthly Sales Report
+                            <small class="text-muted d-block">View sales by month</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Financial Reports Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Financial Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{% url 'reports:profit_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-pie"></i> Profit Report
+                            <small class="text-muted d-block">View profit analysis</small>
+                        </a>
+                        {% if is_admin %}
+                        <a href="{% url 'reports:profit_loss_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-simple"></i> Profit & Loss Statement
+                            <small class="text-muted d-block">Detailed P&L statement</small>
+                        </a>
+                        <a href="{% url 'reports:business_summary' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-simple"></i> Business Summary
+                            <small class="text-muted d-block">Complete business overview</small>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Wastage Reports Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0"><i class="fas fa-trash-alt"></i> Wastage Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{% url 'reports:wastage_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-line"></i> Wastage Report
+                            <small class="text-muted d-block">View wastage with filters</small>
+                        </a>
+                        <a href="{% url 'reports:daily_wastage_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-calendar-day"></i> Daily Wastage Report
+                            <small class="text-muted d-block">View wastage for specific day</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Inventory Reports Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-boxes"></i> Inventory Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{% url 'reports:inventory_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-chart-line"></i> Inventory Report
+                            <small class="text-muted d-block">Stock levels and alerts</small>
+                        </a>
+                        <a href="{% url 'reports:stock_value_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-dollar-sign"></i> Stock Value Report
+                            <small class="text-muted d-block">Inventory valuation</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Advanced Reports (Admin Only) -->
+        {% if is_admin %}
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-simple"></i> Advanced Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="{% url 'reports:advanced_report' %}" class="list-group-item list-group-item-action">
+                            <i class="fas fa-filter"></i> Advanced Report with Filters
+                            <small class="text-muted d-block">Multi-parameter filtered reports</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

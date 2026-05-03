@@ -1,0 +1,26 @@
+<!-- templates/restaurant/form.html -->
+{% extends 'base/base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}{{ title|default:'Restaurant Form' }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="fas fa-store"></i> {{ title|default:'Restaurant Form' }}</h4>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {{ form|crispy }}
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Restaurant
+                </button>
+                <a href="{% url 'restaurant:list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

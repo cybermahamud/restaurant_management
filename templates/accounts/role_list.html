@@ -1,0 +1,84 @@
+<!-- templates/accounts/role_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Roles & Permissions{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h4><i class="fas fa-shield-alt"></i> Roles & Permissions</h4>
+        <a href="{% url 'accounts:create_role' %}" class="btn btn-primary btn-sm float-end">
+            <i class="fas fa-plus"></i> Create Role
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="rolesTable">
+                <thead>
+                    <tr>
+                        <th>Role Name</th>
+                        <th>Description</th>
+                        <th>Permissions</th>
+                        <th>System Role</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for role in roles %}
+                    <tr>
+                        <td><strong>{{ role.name|title }}</strong></td>
+                        <td>{{ role.description|truncatewords:10|default:'-' }}</td>
+                        <td>
+                            <span class="badge bg-info">{{ role.permissions|length }} permissions</span>
+                        </td>
+                        <td>
+                            {% if role.is_system_role %}
+                            <span class="badge bg-warning">System</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Custom</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ role.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            <a href="{% url 'accounts:manage_permissions' role.id %}" class="btn btn-sm btn-info">
+                                <i class="fas fa-lock"></i> Permissions
+                            </a>
+                            {% if not role.is_system_role %}
+                            <button class="btn btn-sm btn-danger" onclick="deleteRole('{{ role.id }}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function deleteRole(roleId) {
+        Swal.fire({
+            title: 'Delete Role?',
+            text: "Users with this role will lose permissions!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/accounts/roles/' + roleId + '/delete/';
+            }
+        });
+    }
+    
+    $(document).ready(function() {
+        $('#rolesTable').DataTable({
+            "order": [[4, "desc"]],
+            "pageLength": 20
+        });
+    });
+</script>
+{% endblock %}

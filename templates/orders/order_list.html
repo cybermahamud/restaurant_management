@@ -1,0 +1,318 @@
+<!-- templates/orders/order_list.html -->
+{% extends 'base/base.html' %}
+{% block title %}Orders{% endblock %}
+
+{% block content %}
+<style>
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-block;
+    }
+    .status-pending { background: #ffc107; color: #000; }
+    .status-preparing { background: #fd7e14; color: #fff; }
+    .status-ready { background: #20c997; color: #fff; }
+    .status-completed { background: #28a745; color: #fff; }
+    .status-cancelled { background: #dc3545; color: #fff; }
+    
+    .filter-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .filter-tab {
+        padding: 8px 20px;
+        border-radius: 25px;
+        background: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 1px solid #dee2e6;
+    }
+    .filter-tab.active {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+    .filter-tab .count {
+        margin-left: 5px;
+        padding: 2px 6px;
+        border-radius: 10px;
+        background: rgba(0,0,0,0.1);
+        font-size: 12px;
+    }
+    .filter-tab.active .count {
+        background: rgba(255,255,255,0.2);
+    }
+    .table-hover tbody tr {
+        cursor: pointer;
+    }
+    .action-buttons .btn {
+        padding: 2px 6px;
+        margin: 0 2px;
+    }
+    .btn-cancel {
+        background-color: #dc3545;
+        color: white;
+    }
+    .btn-cancel:hover {
+        background-color: #c82333;
+        color: white;
+    }
+    .btn-delete {
+        background-color: #6c757d;
+        color: white;
+    }
+    .btn-delete:hover {
+        background-color: #5a6268;
+        color: white;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-receipt"></i> Orders</h2>
+        <a href="{% url 'orders:take_order' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Order
+        </a>
+    </div>
+    
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <div class="filter-tab {% if show == 'active' %}active{% endif %}" onclick="window.location.href='?show=active'">
+            Active Orders <span class="count">{{ active_count }}</span>
+        </div>
+        <div class="filter-tab {% if show == 'completed' %}active{% endif %}" onclick="window.location.href='?show=completed'">
+            Completed <span class="count">{{ completed_count }}</span>
+        </div>
+        <div class="filter-tab {% if show == 'cancelled' %}active{% endif %}" onclick="window.location.href='?show=cancelled'">
+            Cancelled <span class="count">{{ cancelled_count }}</span>
+        </div>
+    </div>
+    
+    <!-- Orders Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="ordersTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Order #</th>
+                            <th>Table</th>
+                            <th>Items</th>
+                            <th>Subtotal</th>
+                            <th>Discount</th>
+                            <th>Tax</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                            <th>Time</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td><strong>{{ order.order_number }}</strong></td>
+                            <td>{% if order.table %}Table {{ order.table.table_number }}{% else %}Takeaway{% endif %}</td>
+                            <td>{{ order.items.count }}</td>
+                            <td>${{ order.subtotal|floatformat:2 }}</td>
+                            <td class="text-success">-${{ order.discount_amount|floatformat:2 }}</td>
+                            <td>${{ order.tax_amount|floatformat:2 }}</td>
+                            <td><strong>${{ order.total_amount|floatformat:2 }}</strong></td>
+                            <td>
+                                <select class="form-select form-select-sm status-select" data-order-id="{{ order.id }}" style="width: 110px;">
+                                    <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="preparing" {% if order.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                                    <option value="ready" {% if order.status == 'ready' %}selected{% endif %}>Ready</option>
+                                    <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Completed</option>
+                                    <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                </select>
+                            </td>
+                            <td>
+                                {% if order.payment_status == 'paid' %}
+                                <span class="badge bg-success">Paid</span>
+                                {% else %}
+                                <span class="badge bg-danger">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                            <td class="action-buttons" style="white-space: nowrap;">
+                                <a href="{% url 'orders:order_detail' order.id %}" class="btn btn-sm btn-info" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if order.status != 'completed' and order.status != 'cancelled' %}
+                                <a href="{% url 'orders:edit_order' order.id %}" class="btn btn-sm btn-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'orders:kitchen_print' order.id %}" class="btn btn-sm btn-secondary" title="Print Kitchen" target="_blank">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                                {% endif %}
+                                {% if order.payment_status != 'paid' %}
+                                <a href="{% url 'orders:payment_page' order.id %}" class="btn btn-sm btn-success" title="Pay">
+                                    <i class="fas fa-money-bill"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'orders:print_bill' order.id %}" class="btn btn-sm btn-primary" title="Print Bill" target="_blank">
+                                    <i class="fas fa-receipt"></i>
+                                </a>
+                                <!-- Cancel Button - Only for non-cancelled, non-completed orders -->
+                                {% if order.status != 'cancelled' and order.status != 'completed' %}
+                                <button class="btn btn-sm btn-cancel" onclick="cancelOrder('{{ order.id }}', '{{ order.order_number }}')" title="Cancel Order">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                                {% endif %}
+                                <!-- Delete Button - Only for admin/superadmin and cancelled/completed orders -->
+                                {% if is_admin or is_superadmin %}
+                                {% if order.status == 'cancelled' or order.status == 'completed' %}
+                                <button class="btn btn-sm btn-delete" onclick="deleteOrder('{{ order.id }}', '{{ order.order_number }}')" title="Delete Order">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                                {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center py-4">
+                                <i class="fas fa-inbox fa-3x mb-2 d-block"></i>
+                                No orders found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Update order status via AJAX
+    $('.status-select').change(function() {
+        const orderId = $(this).data('order-id');
+        const status = $(this).val();
+        
+        Swal.fire({
+            title: 'Update Status?',
+            text: `Change order status to ${status.toUpperCase()}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, update it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/orders/' + orderId + '/update-status/',
+                    method: 'POST',
+                    data: {
+                        status: status,
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Success', 'Status updated', 'success').then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire('Error', 'Failed to update', 'error');
+                        }
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'Failed to update status', 'error');
+                    }
+                });
+            } else {
+                location.reload();
+            }
+        });
+    });
+    
+    // Cancel order function
+    function cancelOrder(orderId, orderNumber) {
+        Swal.fire({
+            title: 'Cancel Order?',
+            html: `Are you sure you want to cancel order <strong>${orderNumber}</strong>?`,
+            text: "This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, cancel order!',
+            cancelButtonText: 'No, keep it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/orders/' + orderId + '/cancel/',
+                    method: 'POST',
+                    data: {
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Success', 'Order cancelled successfully', 'success').then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire('Error', response.error || 'Failed to cancel order', 'error');
+                        }
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'Failed to cancel order', 'error');
+                    }
+                });
+            }
+        });
+    }
+    
+    // Delete order function (permanent deletion)
+    function deleteOrder(orderId, orderNumber) {
+        Swal.fire({
+            title: 'Delete Order?',
+            html: `Are you sure you want to permanently delete order <strong>${orderNumber}</strong>?`,
+            text: "This action cannot be undone and will remove all order records!",
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete permanently!',
+            cancelButtonText: 'No, keep it'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/orders/' + orderId + '/delete/',
+                    method: 'POST',
+                    data: {
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire('Deleted', 'Order deleted successfully', 'success').then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire('Error', response.error || 'Failed to delete order', 'error');
+                        }
+                    },
+                    error: function() {
+                        Swal.fire('Error', 'Failed to delete order', 'error');
+                    }
+                });
+            }
+        });
+    }
+    
+    // Initialize DataTable
+    $(document).ready(function() {
+        $('#ordersTable').DataTable({
+            "order": [[9, "desc"]],
+            "pageLength": 20,
+            "language": {
+                "emptyTable": "No orders found"
+            }
+        });
+    });
+</script>
+{% endblock %}

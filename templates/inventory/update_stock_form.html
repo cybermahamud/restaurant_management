@@ -1,0 +1,140 @@
+<!-- templates/inventory/update_stock_form.html -->
+{% extends 'base/base.html' %}
+{% block title %}Update Stock - {{ material.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0"><i class="fas fa-edit"></i> Update Stock: {{ material.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Current Stock Info -->
+                    <div class="alert alert-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Current Stock:</strong> 
+                                {{ material.current_stock|floatformat:2 }} {{ material.unit }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Current Unit Cost:</strong> 
+                                ${{ material.unit_cost|floatformat:2 }}
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <strong>Current Total Value:</strong> 
+                                ${{ current_total_value|floatformat:2 }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Unit:</strong> 
+                                {{ material.unit }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Warning:</strong> This will override the current stock quantity and unit cost.
+                        Use this for stock corrections, physical counts, or inventory adjustments.
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">New Stock Quantity <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="new_quantity" class="form-control" step="any" min="0" required value="{{ material.current_stock|floatformat:2 }}" id="newQuantity">
+                                <span class="input-group-text">{{ material.unit }}</span>
+                            </div>
+                            <small class="text-muted">Enter the correct/updated stock quantity</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">New Unit Cost (Optional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="new_unit_cost" class="form-control" step="0.01" min="0" value="{{ material.unit_cost|floatformat:2 }}" id="newUnitCost">
+                            </div>
+                            <small class="text-muted">Leave as is to keep current unit cost</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Reason for Update <span class="text-danger">*</span></label>
+                            <textarea name="reason" class="form-control" rows="3" required placeholder="e.g., Physical stock count, Damaged goods, Return to supplier, etc."></textarea>
+                            <small class="text-muted">Please provide a reason for this stock adjustment</small>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3" id="previewAlert">
+                            <strong>Preview of Changes:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Old Stock: <span id="oldStock"></span></li>
+                                <li>New Stock: <span id="newStockPreview"></span></li>
+                                <li>Difference: <span id="difference"></span></li>
+                                <li>Old Value: $<span id="oldValue"></span></li>
+                                <li>New Value: $<span id="newValue"></span></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save"></i> Update Stock
+                            </button>
+                            <a href="{% url 'inventory:stock_detail' material.id %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                    
+                    <hr class="mt-4">
+                    <div class="alert alert-secondary">
+                        <i class="fas fa-info-circle"></i> <strong>When to use Update Stock vs Add Stock:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li><strong>Add Stock (+):</strong> When you purchase new items - adds to existing stock</li>
+                            <li><strong>Update Stock (✏️):</strong> When doing stock count - replaces existing stock with new value</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const newQuantity = document.getElementById('newQuantity');
+    const newUnitCost = document.getElementById('newUnitCost');
+    const previewAlert = document.getElementById('previewAlert');
+    const oldStockValue = {{ material.current_stock|floatformat:2 }};
+    const oldUnitCostValue = {{ material.unit_cost|floatformat:2 }};
+    const oldTotalValue = oldStockValue * oldUnitCostValue;
+    
+    function updatePreview() {
+        const quantity = parseFloat(newQuantity.value) || 0;
+        const unitCost = parseFloat(newUnitCost.value) || oldUnitCostValue;
+        const newTotalValue = quantity * unitCost;
+        const difference = quantity - oldStockValue;
+        
+        document.getElementById('oldStock').innerHTML = `${oldStockValue} {{ material.unit }}`;
+        document.getElementById('newStockPreview').innerHTML = `${quantity.toFixed(2)} {{ material.unit }}`;
+        document.getElementById('difference').innerHTML = `${difference > 0 ? '+' : ''}${difference.toFixed(2)} {{ material.unit }}`;
+        document.getElementById('oldValue').innerHTML = oldTotalValue.toFixed(2);
+        document.getElementById('newValue').innerHTML = newTotalValue.toFixed(2);
+        
+        // Color code the difference
+        const diffSpan = document.getElementById('difference');
+        if (difference > 0) {
+            diffSpan.style.color = 'green';
+        } else if (difference < 0) {
+            diffSpan.style.color = 'red';
+        } else {
+            diffSpan.style.color = 'black';
+        }
+    }
+    
+    newQuantity.addEventListener('input', updatePreview);
+    newUnitCost.addEventListener('input', updatePreview);
+    updatePreview();
+</script>
+{% endblock %}
