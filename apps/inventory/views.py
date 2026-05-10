@@ -214,7 +214,6 @@ def create_raw_material(request):
         messages.error(request, 'Access denied')
         return redirect('common:dashboard')
     
-    categories = RawMaterialCategory.objects.all()
     inventories = Inventory.objects.filter(is_active=True)
     
     if request.method == 'POST':
@@ -222,15 +221,28 @@ def create_raw_material(request):
             material = RawMaterial()
             material.name = request.POST.get('name')
             material.sku = request.POST.get('sku')
-            material.category_id = request.POST.get('category') or None
             material.unit = request.POST.get('unit')
             material.minimum_stock = Decimal(request.POST.get('minimum_stock', 0))
             material.maximum_stock = Decimal(request.POST.get('maximum_stock', 0))
             material.reorder_level = Decimal(request.POST.get('reorder_level', 0))
             material.unit_cost = Decimal(request.POST.get('unit_cost', 0))
             material.inventory_id = request.POST.get('inventory')
+            material.current_stock = Decimal(request.POST.get('current_stock', 0))  # Allow initial stock
             material.is_active = request.POST.get('is_active') == 'on'
             material.save()
+            
+            # If initial stock > 0, create a transaction record
+            if material.current_stock > 0:
+                StockTransaction.objects.create(
+                    raw_material=material,
+                    transaction_type='purchase',
+                    quantity=material.current_stock,
+                    total_cost=material.current_stock * material.unit_cost,
+                    unit_cost=material.unit_cost,
+                    reference_number=f"INITIAL-{timezone.now().strftime('%Y%m%d%H%M%S')}",
+                    notes="Initial stock entry",
+                    created_by=request.user
+                )
             
             messages.success(request, f'Raw material "{material.name}" created')
             return redirect('inventory:raw_material_list')
@@ -238,7 +250,6 @@ def create_raw_material(request):
             messages.error(request, f'Error: {str(e)}')
     
     return render(request, 'inventory/raw_material_form.html', {
-        'categories': categories,
         'inventories': inventories,
     })
 
@@ -255,14 +266,12 @@ def edit_raw_material(request, pk):
         messages.error(request, 'Access denied')
         return redirect('inventory:raw_material_list')
     
-    categories = RawMaterialCategory.objects.all()
     inventories = Inventory.objects.filter(is_active=True)
     
     if request.method == 'POST':
         try:
             material.name = request.POST.get('name')
             material.sku = request.POST.get('sku')
-            material.category_id = request.POST.get('category') or None
             material.unit = request.POST.get('unit')
             material.minimum_stock = Decimal(request.POST.get('minimum_stock', 0))
             material.maximum_stock = Decimal(request.POST.get('maximum_stock', 0))
@@ -270,6 +279,7 @@ def edit_raw_material(request, pk):
             material.unit_cost = Decimal(request.POST.get('unit_cost', 0))
             material.inventory_id = request.POST.get('inventory')
             material.is_active = request.POST.get('is_active') == 'on'
+            # Note: current_stock is not edited here - it's managed through transactions
             material.save()
             
             messages.success(request, f'Raw material "{material.name}" updated')
@@ -279,7 +289,6 @@ def edit_raw_material(request, pk):
     
     return render(request, 'inventory/raw_material_form.html', {
         'material': material,
-        'categories': categories,
         'inventories': inventories,
     })
 
@@ -1376,12 +1385,13 @@ def purchase_summary(request):
             Q(sku__icontains=search_query)
         )
     
-    # Prepare item-wise purchase summary
+    # Prepare item-wise purchase summary - SHOW ALL ITEMS
     items_list = []
     total_purchase_cost = 0
     total_quantity = 0
     
     for material in materials:
+        # Get purchase transactions for this material in date range
         purchases = StockTransaction.objects.filter(
             raw_material=material,
             transaction_type='purchase',
@@ -1389,27 +1399,30 @@ def purchase_summary(request):
             created_at__date__lte=end_date
         )
         
-        if purchases.exists():
-            total_qty = purchases.aggregate(total=Sum('quantity'))['total'] or 0
-            total_cost = purchases.aggregate(total=Sum('total_cost'))['total'] or 0
-            purchase_count = purchases.count()
-            avg_unit_cost = total_cost / total_qty if total_qty > 0 else 0
-            
-            items_list.append({
-                'id': material.id,
-                'name': material.name,
-                'sku': material.sku,
-                'unit': material.unit,
-                'total_quantity': total_qty,
-                'total_cost': total_cost,
-                'avg_unit_cost': avg_unit_cost,
-                'purchase_count': purchase_count,
-            })
-            
-            total_purchase_cost += total_cost
-            total_quantity += total_qty
+        # Calculate totals (will be 0 if no purchases)
+        total_qty = purchases.aggregate(total=Sum('quantity'))['total'] or 0
+        total_cost_val = purchases.aggregate(total=Sum('total_cost'))['total'] or 0
+        purchase_count = purchases.count()
+        
+        # Calculate average unit cost (if there are purchases)
+        avg_unit_cost = total_cost_val / total_qty if total_qty > 0 else 0
+        
+        items_list.append({
+            'id': material.id,
+            'name': material.name,
+            'sku': material.sku,
+            'unit': material.unit,
+            'total_quantity': total_qty,
+            'total_cost': total_cost_val,
+            'avg_unit_cost': avg_unit_cost,
+            'purchase_count': purchase_count,
+        })
+        
+        total_purchase_cost += total_cost_val
+        total_quantity += total_qty
     
-    items_list.sort(key=lambda x: x['total_cost'], reverse=True)
+    # Sort by name
+    items_list.sort(key=lambda x: x['name'])
     
     # Pagination
     paginator = Paginator(items_list, 20)
@@ -1418,7 +1431,7 @@ def purchase_summary(request):
     
     context = {
         'items': items_page,
-        'total_items': len(items_list),
+        'total_items': materials.count(),
         'total_purchase_cost': total_purchase_cost,
         'total_quantity': total_quantity,
         'today_items': today_items,

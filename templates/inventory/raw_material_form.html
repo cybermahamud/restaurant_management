@@ -31,16 +31,17 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Name *</label>
+                                    <label class="form-label">Item Name <span class="text-danger">*</span></label>
                                     <input type="text" name="name" class="form-control" 
                                            value="{{ material.name|default:'' }}" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">SKU</label>
+                                    <label class="form-label">SKU (Stock Keeping Unit)</label>
                                     <input type="text" name="sku" class="form-control" 
-                                           value="{{ material.sku|default:'' }}">
+                                           value="{{ material.sku|default:'' }}" placeholder="e.g., RICE-001">
+                                    <small class="text-muted">Optional - For internal reference</small>
                                 </div>
                             </div>
                         </div>
@@ -48,22 +49,9 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Category</label>
-                                    <select name="category" class="form-select">
-                                        <option value="">-- Select Category --</option>
-                                        {% for category in categories %}
-                                        <option value="{{ category.id }}" 
-                                            {% if material and material.category_id == category.id %}selected{% endif %}>
-                                            {{ category.name }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Unit *</label>
+                                    <label class="form-label">Unit <span class="text-danger">*</span></label>
                                     <select name="unit" class="form-select" required>
+                                        <option value="">-- Select Unit --</option>
                                         <option value="kg" {% if material.unit == 'kg' %}selected{% endif %}>Kilogram (kg)</option>
                                         <option value="g" {% if material.unit == 'g' %}selected{% endif %}>Gram (g)</option>
                                         <option value="l" {% if material.unit == 'l' %}selected{% endif %}>Liter (l)</option>
@@ -71,46 +59,14 @@
                                         <option value="pcs" {% if material.unit == 'pcs' %}selected{% endif %}>Pieces (pcs)</option>
                                         <option value="box" {% if material.unit == 'box' %}selected{% endif %}>Box</option>
                                         <option value="pack" {% if material.unit == 'pack' %}selected{% endif %}>Pack</option>
+                                        <option value="bottle" {% if material.unit == 'bottle' %}selected{% endif %}>Bottle</option>
+                                        <option value="bag" {% if material.unit == 'bag' %}selected{% endif %}>Bag</option>
                                     </select>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Minimum Stock</label>
-                                    <input type="number" name="minimum_stock" class="form-control" step="0.001" 
-                                           value="{{ material.minimum_stock|default:'0' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Maximum Stock</label>
-                                    <input type="number" name="maximum_stock" class="form-control" step="0.001" 
-                                           value="{{ material.maximum_stock|default:'0' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Reorder Level</label>
-                                    <input type="number" name="reorder_level" class="form-control" step="0.001" 
-                                           value="{{ material.reorder_level|default:'0' }}">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Unit Cost ($)</label>
-                                    <input type="number" name="unit_cost" class="form-control" step="0.01" 
-                                           value="{{ material.unit_cost|default:'0' }}">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Inventory *</label>
+                                    <label class="form-label">Inventory <span class="text-danger">*</span></label>
                                     <select name="inventory" class="form-select" required>
                                         <option value="">-- Select Inventory --</option>
                                         {% for inventory in inventories %}
@@ -124,12 +80,64 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Minimum Stock Level</label>
+                                    <input type="number" name="minimum_stock" class="form-control" step="0.001" 
+                                           value="{{ material.minimum_stock|default:'0' }}">
+                                    <small class="text-muted">Alert when below this level</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Maximum Stock Level</label>
+                                    <input type="number" name="maximum_stock" class="form-control" step="0.001" 
+                                           value="{{ material.maximum_stock|default:'0' }}">
+                                    <small class="text-muted">Optional - Stock limit</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Reorder Level</label>
+                                    <input type="number" name="reorder_level" class="form-control" step="0.001" 
+                                           value="{{ material.reorder_level|default:'0' }}">
+                                    <small class="text-muted">When to reorder</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Current Unit Cost ($)</label>
+                                    <input type="number" name="unit_cost" class="form-control" step="0.01" 
+                                           value="{{ material.unit_cost|default:'0' }}">
+                                    <small class="text-muted">Current purchase price per unit</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Current Stock Quantity</label>
+                                    <input type="number" name="current_stock" class="form-control" step="0.001" 
+                                           value="{{ material.current_stock|default:'0' }}" readonly>
+                                    <small class="text-muted">Auto-calculated from transactions</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <div class="form-check">
                                 <input type="checkbox" name="is_active" class="form-check-input" 
                                        {% if material.is_active %}checked{% endif %}>
-                                <label class="form-check-label">Active</label>
+                                <label class="form-check-label">Active (Available for use)</label>
+                                <small class="d-block text-muted">Inactive items won't appear in dropdowns</small>
                             </div>
+                        </div>
+
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle"></i> 
+                            <strong>Note:</strong> Stock quantity is automatically updated when you add stock or use materials in production. Initial stock can be set to 0 and updated later.
                         </div>
 
                         <div class="mt-3">

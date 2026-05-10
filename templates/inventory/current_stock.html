@@ -206,6 +206,7 @@
                 <label class="form-label small">📅 Date Range</label>
                 <select name="date_range" class="form-select form-select-sm" id="dateRangeSelect">
                     <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
+                    <option value="yesterday" {% if date_range == 'yesterday' %}selected{% endif %}>Yesterday</option>
                     <option value="week" {% if date_range == 'week' %}selected{% endif %}>This Week</option>
                     <option value="month" {% if date_range == 'month' %}selected{% endif %}>This Month</option>
                     <option value="last_month" {% if date_range == 'last_month' %}selected{% endif %}>Last Month</option>
@@ -214,11 +215,11 @@
             </div>
             <div class="col-md-2 custom-date" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
                 <label class="form-label small">From Date</label>
-                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|default:'' }}">
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|default:'' }}" id="customStartDate">
             </div>
             <div class="col-md-2 custom-date" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
                 <label class="form-label small">To Date</label>
-                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|default:'' }}">
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|default:'' }}" id="customEndDate">
             </div>
             <div class="col-md-2">
                 <label class="form-label small">&nbsp;</label>
@@ -233,7 +234,7 @@
                 </a>
             </div>
         </form>
-        {% if date_range and start_date and end_date and date_range != 'custom' %}
+        {% if date_range and start_date and end_date %}
         <div class="alert alert-info mt-3 mb-0 py-2 small">
             <i class="fas fa-calendar-alt"></i> Showing purchase summary from <strong>{{ start_date }}</strong> to <strong>{{ end_date }}</strong>
         </div>
@@ -260,29 +261,29 @@
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr
-                        <td>{{ forloop.counter }}</td
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
                         <td>
                             <strong>{{ item.name }}</strong>
                             {% if item.sku %}
                             <br><small class="text-muted">SKU: {{ item.sku }}</small>
                             {% endif %}
-                        </td
-                        <td>{{ item.unit }}</td
+                        </td>
+                        <td>{{ item.unit }}</td>
                         <td class="{% if item.current_stock <= item.minimum_stock %}text-danger fw-bold{% endif %}">
                             {{ item.current_stock|floatformat:2 }}
-                        </td
-                        <td>${{ item.unit_cost|floatformat:2 }}</td
-                        <td class="text-success">${{ item.total_value|floatformat:2 }}</td
-                        <td class="period-summary">{{ item.period_quantity|floatformat:0 }}</td
-                        <td class="period-summary">${{ item.period_cost|floatformat:2 }}</td
+                        </td>
+                        <td>${{ item.unit_cost|floatformat:2 }}</td>
+                        <td class="text-success">${{ item.total_value|floatformat:2 }}</td>
+                        <td class="period-summary">{{ item.period_quantity|floatformat:0 }}</td>
+                        <td class="period-summary">${{ item.period_cost|floatformat:2 }}</td>
                         <td>
                             {% if item.current_stock <= item.minimum_stock %}
                                 <span class="badge-low">Low Stock</span>
                             {% else %}
                                 <span class="badge-ok">OK</span>
                             {% endif %}
-                        </td
+                        </td>
                         <td>
                             <button type="button" class="btn btn-sm btn-success action-btn" title="Add Stock" data-bs-toggle="modal" data-bs-target="#addStockModal" 
                                     onclick="openAddStockModal('{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.unit }}')">
@@ -299,15 +300,15 @@
                                 <i class="fas fa-trash"></i>
                             </button>
                             {% endif %}
-                        </td
-                    </tr
+                        </td>
+                    </tr>
                     {% empty %}
-                    <tr
+                    <tr>
                         <td colspan="10" class="text-center py-4 text-muted">
                             <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
                             No items found. <a href="{% url 'inventory:create_raw_material' %}">Add your first item</a>
-                        </td
-                    </tr
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -385,16 +386,102 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // Toggle custom date fields
+    // Format date as YYYY-MM-DD
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
+    // Set date values based on selection
+    function setDateValues() {
+        const dateRangeSelect = document.getElementById('dateRangeSelect');
+        const selectedValue = dateRangeSelect.value;
+        const today = new Date();
+        const customStartDate = document.getElementById('customStartDate');
+        const customEndDate = document.getElementById('customEndDate');
+        
+        if (selectedValue === 'today') {
+            const dateStr = formatDate(today);
+            customStartDate.value = dateStr;
+            customEndDate.value = dateStr;
+        }
+        else if (selectedValue === 'yesterday') {
+            const yesterday = new Date(today);
+            yesterday.setDate(today.getDate() - 1);
+            const dateStr = formatDate(yesterday);
+            customStartDate.value = dateStr;
+            customEndDate.value = dateStr;
+        }
+        else if (selectedValue === 'week') {
+            const currentDate = new Date(today);
+            const dayOfWeek = currentDate.getDay();
+            const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            const monday = new Date(currentDate);
+            monday.setDate(currentDate.getDate() - daysToMonday);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            customStartDate.value = formatDate(monday);
+            customEndDate.value = formatDate(sunday);
+        }
+        else if (selectedValue === 'month') {
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            customStartDate.value = formatDate(firstDay);
+            customEndDate.value = formatDate(lastDay);
+        }
+        else if (selectedValue === 'last_month') {
+            const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+            customStartDate.value = formatDate(firstDayLastMonth);
+            customEndDate.value = formatDate(lastDayLastMonth);
+        }
+    }
+    
+    // Toggle custom date fields and submit form
     const dateRangeSelect = document.getElementById('dateRangeSelect');
     const customDates = document.querySelectorAll('.custom-date');
+    const filterForm = document.getElementById('filterForm');
     
     if (dateRangeSelect) {
+        // On change - set dates and submit
         dateRangeSelect.addEventListener('change', function() {
             const isCustom = this.value === 'custom';
-            customDates.forEach(el => {
-                el.style.display = isCustom ? 'block' : 'none';
-            });
+            
+            if (!isCustom) {
+                // Set date values based on selection
+                setDateValues();
+                // Hide custom date fields
+                customDates.forEach(el => {
+                    el.style.display = 'none';
+                });
+                // Submit the form
+                filterForm.submit();
+            } else {
+                // Show custom date fields
+                customDates.forEach(el => {
+                    el.style.display = 'block';
+                });
+            }
+        });
+    }
+    
+    // Handle custom date inputs - auto submit when changed
+    const customStartDate = document.getElementById('customStartDate');
+    const customEndDate = document.getElementById('customEndDate');
+    
+    if (customStartDate && customEndDate) {
+        customStartDate.addEventListener('change', function() {
+            if (customStartDate.value && customEndDate.value) {
+                filterForm.submit();
+            }
+        });
+        
+        customEndDate.addEventListener('change', function() {
+            if (customStartDate.value && customEndDate.value) {
+                filterForm.submit();
+            }
         });
     }
     
@@ -421,6 +508,12 @@
         document.getElementById('modalTotalCost').value = '';
         document.getElementById('modalReference').value = '';
         document.getElementById('modalNotes').value = '';
+        
+        // Reset preview
+        const unitCostPreview = document.getElementById('unitCostPreview');
+        unitCostPreview.innerHTML = 'Unit cost will be calculated automatically';
+        unitCostPreview.style.color = '';
+        unitCostPreview.style.fontWeight = '';
         
         // Set form action
         document.getElementById('addStockForm').action = `/inventory/raw-materials/${itemId}/add-stock/`;
