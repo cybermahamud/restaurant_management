@@ -1,0 +1,4 @@
+url: https://cybermahamud.pythonanywhere.com/dashboard/
+Admin username: admin password: admin123
+Staff username: staff password: staff123
+Store username: store password: store123

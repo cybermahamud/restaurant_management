@@ -1,0 +1,549 @@
+<!-- templates/inventory/production_dispatch_report.html -->
+{% extends 'base/base.html' %}
+{% load static %}
+{% load inventory_filters %}
+{% block title %}Production Dispatch Report{% endblock %}
+
+{% block content %}
+<style>
+    .stat-card {
+        border-radius: 15px;
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .table-container {
+        background: white;
+        border-radius: 15px;
+        overflow: auto;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .table-container th {
+        background: #343a40;
+        color: white;
+        padding: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    .table-container td {
+        padding: 10px 12px;
+        vertical-align: middle;
+    }
+    .total-column {
+        background-color: #e8f5e9;
+        font-weight: bold;
+    }
+    .product-name {
+        font-weight: 600;
+        background-color: #f5f5f5;
+    }
+    .dispatch-qty {
+        text-align: center;
+    }
+    .dispatch-qty a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    .dispatch-qty a:hover {
+        text-decoration: underline;
+    }
+    .search-box {
+        position: relative;
+    }
+    .search-box input {
+        padding-right: 35px;
+        border-radius: 20px;
+    }
+    .search-box i {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #999;
+    }
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Messages Toast -->
+    {% if messages %}
+    <div class="toast-container">
+        {% for message in messages %}
+        <div class="toast align-items-center text-white bg-{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}danger{% else %}info{% endif %} border-0 show" role="alert" data-bs-autohide="true" data-bs-delay="3000">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                    {{ message }}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div>
+                    <h4><i class="fas fa-truck"></i> Production Dispatch Report</h4>
+                    <p class="text-muted">Product-wise dispatch details to restaurants</p>
+                </div>
+                <div class="mt-2 mt-md-0">
+                    <a href="{% url 'inventory:consolidated_summary' %}" class="btn btn-info">
+                        <i class="fas fa-chart-line"></i> Consolidated Summary
+                    </a>
+                    <a href="{% url 'inventory:production_batches' %}" class="btn btn-primary">
+                        <i class="fas fa-industry"></i> Production Batches
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card stat-card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="mb-1">Total Production</h6>
+                            <h3 class="mb-0">{{ total_production|floatformat:0|default:0 }}</h3>
+                            <small>Units produced</small>
+                        </div>
+                        <i class="fas fa-industry fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card stat-card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="mb-1">Total Dispatched</h6>
+                            <h3 class="mb-0">{{ total_dispatched|floatformat:0|default:0 }}</h3>
+                            <small>Units dispatched</small>
+                        </div>
+                        <i class="fas fa-truck fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card stat-card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="mb-1">Pending Dispatch</h6>
+                            <h3 class="mb-0">{{ total_pending|floatformat:0|default:0 }}</h3>
+                            <small>Yet to dispatch</small>
+                        </div>
+                        <i class="fas fa-clock fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="get" class="row g-3 align-items-end" id="filterForm">
+            <div class="col-md-3">
+                <label class="form-label small">🔍 Search Product</label>
+                <div class="search-box">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Product name..." value="{{ search_query|default:'' }}" id="searchInput">
+                    <i class="fas fa-search"></i>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">📅 Date Range</label>
+                <select name="date_range" class="form-select form-select-sm" id="dateRangeSelect">
+                    <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
+                    <option value="week" {% if date_range == 'week' %}selected{% endif %}>This Week</option>
+                    <option value="month" {% if date_range == 'month' %}selected{% endif %}>This Month</option>
+                    <option value="last_month" {% if date_range == 'last_month' %}selected{% endif %}>Last Month</option>
+                    <option value="custom" {% if date_range == 'custom' %}selected{% endif %}>Custom Range</option>
+                </select>
+            </div>
+            <div class="col-md-2 custom-date" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
+                <label class="form-label small">From Date</label>
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|default:'' }}" id="customStartDate">
+            </div>
+            <div class="col-md-2 custom-date" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
+                <label class="form-label small">To Date</label>
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|default:'' }}" id="customEndDate">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">&nbsp;</label>
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="fas fa-filter"></i> Apply
+                </button>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label small">&nbsp;</label>
+                <a href="{% url 'inventory:production_dispatch_report' %}" class="btn btn-secondary btn-sm w-100">
+                    <i class="fas fa-sync-alt"></i>
+                </a>
+            </div>
+        </form>
+        
+        <div class="alert alert-info mt-3 mb-0 py-2 small">
+            <i class="fas fa-calendar-alt"></i> 
+            Showing dispatch report from <strong>{{ start_date|default:"-" }}</strong> to <strong>{{ end_date|default:"-" }}</strong>
+        </div>
+    </div>
+
+    <!-- Dispatch Report Table -->
+    <div class="table-container">
+        <div class="table-responsive">
+            <table class="table table-bordered mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product / Menu Item</th>
+                        <th>Unit</th>
+                        {% for restaurant in restaurants %}
+                        <th>{{ restaurant.name }}</th>
+                        {% endfor %}
+                        <th class="total-column">Total Dispatched</th>
+                        <th>Production</th>
+                        <th>Pending</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="product-name">
+                            <strong>{{ product.name }}</strong>
+                        </td>
+                        <td>{{ product.unit }}</td>
+                        {% for restaurant in restaurants %}
+                        <td class="dispatch-qty">
+                            {% with dispatch_value=product.dispatch_data|get_item:restaurant.id %}
+                                {% if dispatch_value > 0 %}
+                                    <a href="javascript:void(0)" onclick="viewDispatchDetails('{{ product.id }}', '{{ restaurant.id }}', '{{ product.name|escapejs }}', '{{ restaurant.name|escapejs }}')">
+                                        {{ dispatch_value|floatformat:0 }}
+                                    </a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        {% endfor %}
+                        <td class="total-column dispatch-qty">
+                            <a href="javascript:void(0)" onclick="viewProductDispatchDetails('{{ product.id }}', '{{ product.name|escapejs }}')">
+                                <strong>{{ product.total_dispatched|floatformat:0 }}</strong>
+                            </a>
+                        </td>
+                        <td class="text-primary">{{ product.total_production|floatformat:0 }}</td>
+                        <td class="{% if product.pending > 0 %}text-warning{% else %}text-success{% endif %}">
+                            {{ product.pending|floatformat:0 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ restaurants|length|add:5 }}" class="text-center py-4 text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
+                            No dispatch records found for this period.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-dark">
+                        <th colspan="2">Total</th>
+                        <th>-</th>
+                        {% for restaurant in restaurants %}
+                        <th class="text-center">{{ restaurant_totals|get_item:restaurant.id|floatformat:0|default:0 }}</th>
+                        {% endfor %}
+                        <th class="total-column text-center">{{ total_dispatched|floatformat:0|default:0 }}</th>
+                        <th class="text-center">{{ total_production|floatformat:0|default:0 }}</th>
+                        <th class="text-center">{{ total_pending|floatformat:0|default:0 }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Dispatch Details Modal -->
+<div class="modal fade" id="dispatchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Dispatch Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="dispatchModalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading dispatch details...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // Function to set custom date values based on selection
+    function setCustomDateValues() {
+        const dateRangeSelect = document.getElementById('dateRangeSelect');
+        const selectedValue = dateRangeSelect.value;
+        const today = new Date();
+        const customStartDate = document.getElementById('customStartDate');
+        const customEndDate = document.getElementById('customEndDate');
+        
+        if (selectedValue === 'today') {
+            const dateStr = today.toISOString().split('T')[0];
+            customStartDate.value = dateStr;
+            customEndDate.value = dateStr;
+        } 
+        else if (selectedValue === 'week') {
+            const day = today.getDay();
+            const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(today.setDate(diff));
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            customStartDate.value = monday.toISOString().split('T')[0];
+            customEndDate.value = sunday.toISOString().split('T')[0];
+            today.setDate(today.getDate());
+        }
+        else if (selectedValue === 'month') {
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            customStartDate.value = firstDay.toISOString().split('T')[0];
+            customEndDate.value = today.toISOString().split('T')[0];
+        }
+        else if (selectedValue === 'last_month') {
+            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+            customStartDate.value = lastMonth.toISOString().split('T')[0];
+            customEndDate.value = lastDayOfLastMonth.toISOString().split('T')[0];
+        }
+    }
+    
+    // Toggle custom date fields
+    const dateRangeSelect = document.getElementById('dateRangeSelect');
+    const customDates = document.querySelectorAll('.custom-date');
+    const filterForm = document.getElementById('filterForm');
+    
+    if (dateRangeSelect) {
+        const currentRange = dateRangeSelect.value;
+        if (currentRange !== 'custom') {
+            setCustomDateValues();
+            customDates.forEach(el => {
+                el.style.display = 'none';
+            });
+        } else {
+            customDates.forEach(el => {
+                el.style.display = 'block';
+            });
+        }
+        
+        dateRangeSelect.addEventListener('change', function() {
+            const isCustom = this.value === 'custom';
+            if (!isCustom) {
+                setCustomDateValues();
+                customDates.forEach(el => {
+                    el.style.display = 'none';
+                });
+                filterForm.submit();
+            } else {
+                customDates.forEach(el => {
+                    el.style.display = 'block';
+                });
+            }
+        });
+    }
+    
+    // Search functionality
+    const searchInput = document.getElementById('searchInput');
+    let searchTimeout;
+    
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                filterForm.submit();
+            }
+        });
+        
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                filterForm.submit();
+            }, 800);
+        });
+    }
+    
+    // View dispatch details for a specific product and restaurant
+    function viewDispatchDetails(productId, restaurantId, productName, restaurantName) {
+        const startDate = document.querySelector('input[name="start_date"]')?.value || '';
+        const endDate = document.querySelector('input[name="end_date"]')?.value || '';
+        const dateRange = document.querySelector('select[name="date_range"]')?.value || 'today';
+        
+        const modal = new bootstrap.Modal(document.getElementById('dispatchModal'));
+        modal.show();
+        
+        fetch(`/inventory/dispatch-details/${productId}/${restaurantId}/?start_date=${startDate}&end_date=${endDate}&date_range=${dateRange}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let html = `
+                        <h6 class="mb-3">Dispatch Details</h6>
+                        <div class="alert alert-info">
+                            <strong>Product:</strong> ${productName}<br>
+                            <strong>Restaurant:</strong> ${restaurantName}<br>
+                            <strong>Period:</strong> ${data.start_date} to ${data.end_date}<br>
+                            <strong>Total Dispatched:</strong> ${data.total_quantity}
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Quantity</th>
+                                        <th>Request ID</th>
+                                        <th>Dispatched By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    data.dispatches.forEach(dispatch => {
+                        html += `
+                            <tr>
+                                <td>${dispatch.date}</td>
+                                <td>${dispatch.quantity}</td>
+                                <td>${dispatch.request_id || '-'}</td>
+                                <td>${dispatch.dispatched_by || '-'}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    document.getElementById('dispatchModalBody').innerHTML = html;
+                } else {
+                    document.getElementById('dispatchModalBody').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i> ${data.error}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                document.getElementById('dispatchModalBody').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i> Failed to load dispatch details
+                    </div>
+                `;
+            });
+    }
+    
+    // View all dispatches for a product
+    function viewProductDispatchDetails(productId, productName) {
+        const startDate = document.querySelector('input[name="start_date"]')?.value || '';
+        const endDate = document.querySelector('input[name="end_date"]')?.value || '';
+        const dateRange = document.querySelector('select[name="date_range"]')?.value || 'today';
+        
+        const modal = new bootstrap.Modal(document.getElementById('dispatchModal'));
+        modal.show();
+        
+        fetch(`/inventory/product-dispatch-details/${productId}/?start_date=${startDate}&end_date=${endDate}&date_range=${dateRange}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let html = `
+                        <h6 class="mb-3">Dispatch Details for: <strong>${productName}</strong></h6>
+                        <div class="alert alert-info">
+                            <strong>Period:</strong> ${data.start_date} to ${data.end_date}<br>
+                            <strong>Total Dispatched:</strong> ${data.total_quantity}
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Restaurant</th>
+                                        <th>Quantity</th>
+                                        <th>Request ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    data.dispatches.forEach(dispatch => {
+                        html += `
+                            <tr>
+                                <td>${dispatch.date}</td>
+                                <td>${dispatch.restaurant}</td>
+                                <td>${dispatch.quantity}</td>
+                                <td>${dispatch.request_id || '-'}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    document.getElementById('dispatchModalBody').innerHTML = html;
+                } else {
+                    document.getElementById('dispatchModalBody').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i> ${data.error}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                document.getElementById('dispatchModalBody').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i> Failed to load dispatch details
+                    </div>
+                `;
+            });
+    }
+    
+    // Auto-hide toasts
+    document.addEventListener('DOMContentLoaded', function() {
+        var toasts = document.querySelectorAll('.toast');
+        toasts.forEach(function(toast) {
+            var bsToast = new bootstrap.Toast(toast, {
+                autohide: true,
+                delay: 3000
+            });
+            bsToast.show();
+        });
+    });
+</script>
+{% endblock %}

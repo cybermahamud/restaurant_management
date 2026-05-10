@@ -53,4 +53,10 @@ urlpatterns = [
     path('production-batches/', views.production_batches, name='production_batches'),
     path('dispatch/<uuid:request_id>/', views.dispatch_to_restaurant, name='dispatch_to_restaurant'),
     path('production-batch/generate/', views.generate_production_batch, name='generate_production_batch'),
+
+    path('purchase-summary/', views.purchase_summary, name='purchase_summary'),
+    path('item-transactions/<uuid:item_id>/', views.item_transactions, name='item_transactions'),
+    path('production-dispatch-report/', views.production_dispatch_report, name='production_dispatch_report'),
+    path('dispatch-details/<uuid:product_id>/<uuid:restaurant_id>/', views.dispatch_details, name='dispatch_details'),
+    path('product-dispatch-details/<uuid:product_id>/', views.product_dispatch_details, name='product_dispatch_details'),
 ]

@@ -4,36 +4,71 @@
 {% block title %}Add Production Batch{% endblock %}
 
 {% block content %}
+<style>
+    .batch-preview {
+        background: #e8f5e9;
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 10px;
+        font-size: 14px;
+    }
+    .info-card {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+</style>
+
 <div class="container-fluid">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-md-8">
             <div class="card">
                 <div class="card-header bg-success text-white">
                     <h4 class="mb-0"><i class="fas fa-industry"></i> Add Production Batch</h4>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <!-- Info Card -->
+                    <div class="info-card">
+                        <i class="fas fa-info-circle text-primary"></i>
+                        <strong>What is Production Batch?</strong>
+                        <p class="mb-0 small text-muted">Production batch is when you produce menu items in bulk. 
+                        The batch number will be auto-generated for you based on date and item.</p>
+                    </div>
+                    
+                    <form method="post" id="productionBatchForm">
                         {% csrf_token %}
                         
                         <div class="mb-3">
-                            <label class="form-label">Menu Item <span class="text-danger">*</span></label>
-                            <select name="menu_item" class="form-select" required>
-                                <option value="">Select Menu Item</option>
+                            <label class="form-label">Select Menu Item <span class="text-danger">*</span></label>
+                            <select name="menu_item" id="menuItemSelect" class="form-select" required>
+                                <option value="">-- Select Menu Item --</option>
                                 {% for item in menu_items %}
-                                <option value="{{ item.id }}">{{ item.name }}</option>
+                                <option value="{{ item.id }}" data-name="{{ item.name }}" data-unit="{{ item.unit|default:'pcs' }}">
+                                    {{ item.name }} (Stock: {{ item.quantity|default:0 }})
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Batch Number <span class="text-danger">*</span></label>
-                            <input type="text" name="batch_number" class="form-control" placeholder="e.g., BATCH-001" required>
-                            <small class="text-muted">Unique batch identifier</small>
+                            <input type="text" name="batch_number" id="batchNumber" class="form-control" readonly style="background-color: #f5f5f5;" required>
+                            <small class="text-muted">Auto-generated batch number (cannot be edited)</small>
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Quantity Produced <span class="text-danger">*</span></label>
-                            <input type="number" name="quantity" class="form-control" step="0.01" placeholder="Enter produced quantity" required>
+                            <div class="input-group">
+                                <input type="number" name="quantity" id="quantity" class="form-control" step="any" placeholder="Enter produced quantity" required>
+                                <span class="input-group-text" id="unitPreview">units</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Production Date</label>
+                            <input type="text" class="form-control" value="{% now 'Y-m-d H:i:s' %}" readonly>
+                            <small class="text-muted">Auto-set to current date & time</small>
                         </div>
                         
                         <div class="mb-3">
@@ -41,9 +76,15 @@
                             <textarea name="notes" class="form-control" rows="3" placeholder="Any notes about this batch..."></textarea>
                         </div>
                         
+                        <!-- Preview Section -->
+                        <div class="batch-preview" id="batchPreview" style="display: none;">
+                            <strong><i class="fas fa-chalkboard"></i> Batch Preview:</strong>
+                            <div id="previewText"></div>
+                        </div>
+                        
                         <div class="mt-3">
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-save"></i> Save Batch
+                            <button type="submit" class="btn btn-success" id="submitBtn">
+                                <i class="fas fa-save"></i> Add Production Batch
                             </button>
                             <a href="{% url 'inventory:production_batches' %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Cancel
@@ -55,4 +96,139 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Function to generate batch number
+    function generateBatchNumber(itemName) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        
+        const dateStr = `${year}${month}${day}`;
+        const timeStr = `${hours}${minutes}${seconds}`;
+        
+        // Get item code (first 3 letters of item name)
+        let itemCode = 'PRD';
+        if (itemName && itemName.length > 0) {
+            itemCode = itemName.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+            if (itemCode.length < 2) itemCode = 'PRD';
+        }
+        
+        // Generate random number
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        
+        return `BATCH-${dateStr}-${itemCode}-${random}`;
+    }
+    
+    // Update batch preview
+    function updatePreview() {
+        const itemSelect = document.getElementById('menuItemSelect');
+        const quantity = document.getElementById('quantity').value;
+        const batchNumber = document.getElementById('batchNumber').value;
+        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+        const itemName = selectedOption ? selectedOption.getAttribute('data-name') : '';
+        const previewDiv = document.getElementById('batchPreview');
+        const previewText = document.getElementById('previewText');
+        
+        if (itemName && quantity && batchNumber) {
+            previewDiv.style.display = 'block';
+            previewText.innerHTML = `
+                <strong>Item:</strong> ${itemName}<br>
+                <strong>Batch Number:</strong> ${batchNumber}<br>
+                <strong>Quantity:</strong> ${quantity} units<br>
+                <strong>Status:</strong> Ready to produce
+            `;
+        } else {
+            previewDiv.style.display = 'none';
+        }
+    }
+    
+    // When menu item changes, generate new batch number
+    const menuItemSelect = document.getElementById('menuItemSelect');
+    const batchNumberInput = document.getElementById('batchNumber');
+    const unitSpan = document.getElementById('unitPreview');
+    const quantityInput = document.getElementById('quantity');
+    
+    menuItemSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const itemName = selectedOption ? selectedOption.getAttribute('data-name') : '';
+        const unit = selectedOption ? selectedOption.getAttribute('data-unit') : 'units';
+        
+        if (itemName) {
+            const batchNumber = generateBatchNumber(itemName);
+            batchNumberInput.value = batchNumber;
+            unitSpan.innerText = unit;
+        } else {
+            batchNumberInput.value = '';
+            unitSpan.innerText = 'units';
+        }
+        
+        updatePreview();
+    });
+    
+    quantityInput.addEventListener('input', function() {
+        updatePreview();
+    });
+    
+    // Form validation before submit
+    const form = document.getElementById('productionBatchForm');
+    form.addEventListener('submit', function(e) {
+        const itemSelect = document.getElementById('menuItemSelect');
+        const quantity = document.getElementById('quantity').value;
+        
+        if (!itemSelect.value) {
+            e.preventDefault();
+            Swal.fire('Error!', 'Please select a menu item', 'error');
+            return false;
+        }
+        
+        if (!quantity || quantity <= 0) {
+            e.preventDefault();
+            Swal.fire('Error!', 'Please enter a valid quantity', 'error');
+            return false;
+        }
+        
+        // Show confirmation
+        e.preventDefault();
+        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+        const itemName = selectedOption ? selectedOption.getAttribute('data-name') : '';
+        
+        Swal.fire({
+            title: 'Confirm Production Batch',
+            html: `Are you sure you want to add production batch for:<br><br>
+                   <strong>Item:</strong> ${itemName}<br>
+                   <strong>Batch Number:</strong> ${batchNumberInput.value}<br>
+                   <strong>Quantity:</strong> ${quantity} units<br><br>
+                   This will add stock to inventory.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#dc3545',
+            confirmButtonText: 'Yes, Add Batch!',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    });
+    
+    // Auto-generate on page load if no item selected
+    document.addEventListener('DOMContentLoaded', function() {
+        if (menuItemSelect.value) {
+            const selectedOption = menuItemSelect.options[menuItemSelect.selectedIndex];
+            const itemName = selectedOption ? selectedOption.getAttribute('data-name') : '';
+            if (itemName) {
+                batchNumberInput.value = generateBatchNumber(itemName);
+            }
+        }
+    });
+</script>
+
+<!-- SweetAlert2 CSS and JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {% endblock %}

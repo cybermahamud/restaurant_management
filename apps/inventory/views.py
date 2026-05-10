@@ -1,5 +1,5 @@
 # apps/inventory/views.py
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -16,7 +16,7 @@ from .models import (
 from .forms import (
     RawMaterialForm, RawMaterialCategoryForm, InventoryForm, AddStockForm, UpdateStockForm
 )
-from apps.restaurant.models import MenuItem, Recipe
+from apps.restaurant.models import MenuItem, Recipe, Restaurant
 
 
 # ==================== Helper Functions ====================
@@ -305,25 +305,124 @@ def delete_raw_material(request, pk):
 
 @login_required
 def current_stock(request):
+    """Current Stock - Show all items with period purchase summary"""
+    
     if request.user.role == 'admin' or request.user.is_superuser:
-        materials = RawMaterial.objects.all()
+        materials = RawMaterial.objects.filter(is_active=True)
+        can_delete = True
     elif request.user.role == 'store':
         if not request.user.inventory:
             messages.error(request, 'No inventory assigned')
             return redirect('common:dashboard')
-        materials = RawMaterial.objects.filter(inventory=request.user.inventory)
+        materials = RawMaterial.objects.filter(inventory=request.user.inventory, is_active=True)
+        can_delete = False
     else:
         messages.error(request, 'Access denied')
         return redirect('common:dashboard')
     
-    categories = RawMaterialCategory.objects.all()
-    pending_requests = StockRequest.objects.filter(status='pending').count()
+    # Get filter parameters
+    date_range = request.GET.get('date_range', 'month')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    search_query = request.GET.get('search', '')
     
-    return render(request, 'inventory/current_stock.html', {
-        'materials': materials,
-        'categories': categories,
-        'pending_requests': pending_requests,
-    })
+    today = timezone.now().date()
+    
+    # Calculate date range
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            date_range = 'custom'
+        except (ValueError, TypeError):
+            start_date = today - timedelta(days=30)
+            end_date = today
+    elif date_range == 'today':
+        start_date = today
+        end_date = today
+    elif date_range == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif date_range == 'last_month':
+        first_day_of_month = today.replace(day=1)
+        last_day_of_prev_month = first_day_of_month - timedelta(days=1)
+        start_date = last_day_of_prev_month.replace(day=1)
+        end_date = last_day_of_prev_month
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+    
+    # Apply search filter
+    if search_query:
+        materials = materials.filter(
+            Q(name__icontains=search_query) |
+            Q(sku__icontains=search_query)
+        )
+    
+    # Prepare item list with period summary
+    items_list = []
+    total_value = 0
+    low_stock_count = 0
+    total_period_quantity = 0
+    
+    for material in materials:
+        # Calculate period purchase summary (total quantity and cost for this item)
+        period_purchases = StockTransaction.objects.filter(
+            raw_material=material,
+            transaction_type='purchase',
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date
+        ).aggregate(
+            total_qty=Sum('quantity'),
+            total_cost=Sum('total_cost')
+        )
+        
+        period_qty = period_purchases['total_qty'] or 0
+        period_cost = period_purchases['total_cost'] or 0
+        
+        # Calculate total value
+        material_total_value = material.current_stock * material.unit_cost
+        total_value += material_total_value
+        total_period_quantity += period_qty
+        
+        if material.current_stock <= material.minimum_stock:
+            low_stock_count += 1
+        
+        items_list.append({
+            'id': material.id,
+            'name': material.name,
+            'sku': material.sku,
+            'unit': material.unit,
+            'current_stock': material.current_stock,
+            'unit_cost': material.unit_cost,
+            'minimum_stock': material.minimum_stock,
+            'total_value': material_total_value,
+            'period_quantity': period_qty,
+            'period_cost': period_cost,
+        })
+    
+    # Pagination
+    paginator = Paginator(items_list, 20)
+    page = request.GET.get('page')
+    items_page = paginator.get_page(page)
+    
+    context = {
+        'items': items_page,
+        'total_items': materials.count(),
+        'total_value': total_value,
+        'total_period_quantity': total_period_quantity,
+        'low_stock_count': low_stock_count,
+        'date_range': date_range,
+        'start_date': start_date.strftime('%Y-%m-%d') if start_date else '',
+        'end_date': end_date.strftime('%Y-%m-%d') if end_date else '',
+        'search_query': search_query,
+        'can_delete': can_delete,
+    }
+    
+    return render(request, 'inventory/current_stock.html', context)
 
 
 @login_required
@@ -349,61 +448,6 @@ def stock_detail(request, pk):
         'total_value': total_value,  # This is the key
     })
 
-
-# @login_required
-# def add_stock(request, pk):
-#     if request.method != 'POST':
-#         return JsonResponse({'error': 'Invalid method'}, status=400)
-    
-#     if not has_inventory_access(request.user):
-#         return JsonResponse({'error': 'Access denied'}, status=403)
-    
-#     material = get_object_or_404(RawMaterial, id=pk)
-    
-#     if request.user.role == 'store' and material.inventory != request.user.inventory:
-#         return JsonResponse({'error': 'Access denied'}, status=403)
-    
-#     quantity = Decimal(request.POST.get('quantity', 0))
-#     total_cost = Decimal(request.POST.get('total_cost', 0))
-#     reference = request.POST.get('reference_number', '')
-#     notes = request.POST.get('notes', '')
-    
-#     if quantity <= 0:
-#         return JsonResponse({'error': 'Quantity must be greater than 0'}, status=400)
-    
-#     if total_cost <= 0:
-#         return JsonResponse({'error': 'Total cost must be greater than 0'}, status=400)
-    
-#     unit_cost = total_cost / quantity
-    
-#     old_stock = material.current_stock
-#     old_total_value = material.current_stock * material.unit_cost
-    
-#     new_total_value = old_total_value + total_cost
-#     new_total_quantity = old_stock + quantity
-#     new_avg_unit_cost = new_total_value / new_total_quantity if new_total_quantity > 0 else unit_cost
-    
-#     material.current_stock = new_total_quantity
-#     material.unit_cost = new_avg_unit_cost
-#     material.save()
-    
-#     StockTransaction.objects.create(
-#         raw_material=material,
-#         transaction_type='purchase',
-#         quantity=quantity,
-#         total_cost=total_cost,
-#         unit_cost=unit_cost,
-#         reference_number=reference,
-#         notes=notes,
-#         created_by=request.user
-#     )
-    
-#     return JsonResponse({
-#         'success': True,
-#         'message': f'Added {quantity} {material.unit} of {material.name}',
-#         'new_stock': float(new_total_quantity),
-#         'new_unit_cost': float(new_avg_unit_cost),
-#     })
 
 @login_required
 def add_stock(request, pk):
@@ -469,13 +513,13 @@ def add_stock(request, pk):
             )
             
             messages.success(request, f'Successfully added {quantity} {material.unit} of {material.name}')
-            return redirect('inventory:stock_detail', pk=material.id)
+            return redirect('inventory:purchase_summary', pk=material.id)
             
         except Exception as e:
             messages.error(request, f'Error adding stock: {str(e)}')
             return redirect('inventory:add_stock', pk=material.id)
     
-    return redirect('inventory:current_stock')
+    return redirect('inventory:purchase_summary')
 
 
 @login_required
@@ -763,21 +807,99 @@ def daily_request_detail(request, pk):
 
 @login_required
 def all_requests_list(request):
-    """Admin/Store views all daily requests"""
+    """Admin/Store views all daily requests with advanced filters"""
     if request.user.role not in ['admin', 'superadmin', 'store']:
         messages.error(request, 'Access denied')
         return redirect('common:dashboard')
     
-    date_filter = request.GET.get('date')
-    if date_filter:
-        requests = DailyStockRequest.objects.filter(request_date=date_filter).order_by('-request_date')
-    else:
-        requests = DailyStockRequest.objects.all().order_by('-request_date')
+    # Get filter parameters
+    date_range = request.GET.get('date_range', 'today')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    status_filter = request.GET.get('status', '')
+    restaurant_id = request.GET.get('restaurant', '')
     
-    return render(request, 'inventory/all_requests_list.html', {
-        'requests': requests,
-        'selected_date': date_filter
-    })
+    today = timezone.now().date()
+    
+    # Calculate date range
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            date_range = 'custom'
+        except (ValueError, TypeError):
+            start_date = today
+            end_date = today
+    elif date_range == 'today':
+        start_date = today
+        end_date = today
+    elif date_range == 'yesterday':
+        start_date = today - timedelta(days=1)
+        end_date = today - timedelta(days=1)
+    elif date_range == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif date_range == 'last_month':
+        first_day_of_month = today.replace(day=1)
+        last_day_of_prev_month = first_day_of_month - timedelta(days=1)
+        start_date = last_day_of_prev_month.replace(day=1)
+        end_date = last_day_of_prev_month
+    else:
+        start_date = today
+        end_date = today
+    
+    # Base queryset
+    requests = DailyStockRequest.objects.filter(
+        request_date__gte=start_date,
+        request_date__lte=end_date
+    ).order_by('-request_date')
+    
+    # Apply status filter
+    if status_filter:
+        requests = requests.filter(status=status_filter)
+    
+    # Apply restaurant filter
+    selected_restaurant_name = None
+    if restaurant_id:
+        requests = requests.filter(restaurant_id=restaurant_id)
+        try:
+            selected_restaurant_name = Restaurant.objects.get(id=restaurant_id).name
+        except:
+            pass
+    
+    # Pagination
+    paginator = Paginator(requests, 20)
+    page = request.GET.get('page')
+    requests_page = paginator.get_page(page)
+    
+    # Calculate statistics
+    total_requests = requests.count()
+    pending_count = requests.filter(status='pending').count()
+    completed_count = requests.filter(status='completed').count()
+    total_items = sum(req.items.count() for req in requests)
+    
+    # Get all restaurants for filter dropdown
+    restaurants = Restaurant.objects.filter(is_active=True)
+    
+    context = {
+        'requests': requests_page,
+        'total_requests': total_requests,
+        'pending_count': pending_count,
+        'completed_count': completed_count,
+        'total_items': total_items,
+        'restaurants': restaurants,
+        'date_range': date_range,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+        'status_filter': status_filter,
+        'selected_restaurant': restaurant_id,
+        'selected_restaurant_name': selected_restaurant_name,
+    }
+    
+    return render(request, 'inventory/all_requests_list.html', context)
 
 
 login_required
@@ -834,26 +956,45 @@ def add_production_batch(request):
     
     if request.method == 'POST':
         menu_item_id = request.POST.get('menu_item')
-        quantity = Decimal(request.POST.get('quantity', 0))
         batch_number = request.POST.get('batch_number', '')
+        quantity = Decimal(request.POST.get('quantity', 0))
         notes = request.POST.get('notes', '')
         
         menu_item = get_object_or_404(MenuItem, id=menu_item_id)
         
-        ProductionBatch.objects.create(
+        # If batch number is empty, generate one
+        if not batch_number:
+            from datetime import datetime
+            item_code = menu_item.name[:3].upper().replace(' ', '')
+            batch_number = f"BATCH-{datetime.now().strftime('%Y%m%d%H%M%S')}-{item_code}"
+        
+        # Check if batch number already exists
+        if ProductionBatch.objects.filter(batch_number=batch_number).exists():
+            messages.error(request, f'Batch number "{batch_number}" already exists!')
+            return redirect('inventory:add_production_batch')
+        
+        if quantity <= 0:
+            messages.error(request, 'Quantity must be greater than 0')
+            return redirect('inventory:add_production_batch')
+        
+        # Create production batch
+        batch = ProductionBatch.objects.create(
             menu_item=menu_item,
             batch_number=batch_number,
             quantity_produced=quantity,
-            produced_by=request.user,
-            notes=notes
+            notes=notes,
+            produced_by=request.user
         )
         
-        messages.success(request, f'Batch {batch_number} added for {menu_item.name}')
+        # Update menu item stock
+        menu_item.quantity += quantity
+        menu_item.save()
+        
+        messages.success(request, f'Production batch "{batch_number}" created for {menu_item.name}. Added {quantity} to stock.')
         return redirect('inventory:production_batches')
     
     menu_items = MenuItem.objects.filter(is_available=True)
     return render(request, 'inventory/add_production_batch.html', {'menu_items': menu_items})
-
 
 @login_required
 def production_batches(request):
@@ -1157,3 +1298,463 @@ def update_stock(request, pk):
             return redirect('inventory:update_stock', pk=material.id)
     
     return redirect('inventory:current_stock')
+
+
+
+@login_required
+def purchase_summary(request):
+    """Purchase Summary - Item-wise total purchase details based on date range"""
+    
+    if request.user.role == 'admin' or request.user.is_superuser:
+        materials = RawMaterial.objects.filter(is_active=True)
+    elif request.user.role == 'store':
+        if not request.user.inventory:
+            messages.error(request, 'No inventory assigned')
+            return redirect('common:dashboard')
+        materials = RawMaterial.objects.filter(inventory=request.user.inventory, is_active=True)
+    else:
+        messages.error(request, 'Access denied')
+        return redirect('common:dashboard')
+    
+    # Get filter parameters
+    date_range = request.GET.get('date_range', 'month')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    search_query = request.GET.get('search', '')
+    
+    today = timezone.now().date()
+    
+    # Calculate date range
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            date_range = 'custom'
+        except (ValueError, TypeError):
+            start_date = today - timedelta(days=30)
+            end_date = today
+    elif date_range == 'today':
+        start_date = today
+        end_date = today
+    elif date_range == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif date_range == 'last_month':
+        first_day_of_month = today.replace(day=1)
+        last_day_of_prev_month = first_day_of_month - timedelta(days=1)
+        start_date = last_day_of_prev_month.replace(day=1)
+        end_date = last_day_of_prev_month
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+    
+    # Calculate Today's summary
+    today_purchases = StockTransaction.objects.filter(
+        transaction_type='purchase',
+        created_at__date=today
+    )
+    today_items = today_purchases.count()
+    today_cost = today_purchases.aggregate(total=Sum('total_cost'))['total'] or 0
+    
+    # Calculate Monthly summary
+    start_of_month = today.replace(day=1)
+    monthly_purchases = StockTransaction.objects.filter(
+        transaction_type='purchase',
+        created_at__date__gte=start_of_month,
+        created_at__date__lte=today
+    )
+    monthly_items = monthly_purchases.count()
+    monthly_cost = monthly_purchases.aggregate(total=Sum('total_cost'))['total'] or 0
+    
+    # Apply search filter
+    if search_query:
+        materials = materials.filter(
+            Q(name__icontains=search_query) |
+            Q(sku__icontains=search_query)
+        )
+    
+    # Prepare item-wise purchase summary
+    items_list = []
+    total_purchase_cost = 0
+    total_quantity = 0
+    
+    for material in materials:
+        purchases = StockTransaction.objects.filter(
+            raw_material=material,
+            transaction_type='purchase',
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date
+        )
+        
+        if purchases.exists():
+            total_qty = purchases.aggregate(total=Sum('quantity'))['total'] or 0
+            total_cost = purchases.aggregate(total=Sum('total_cost'))['total'] or 0
+            purchase_count = purchases.count()
+            avg_unit_cost = total_cost / total_qty if total_qty > 0 else 0
+            
+            items_list.append({
+                'id': material.id,
+                'name': material.name,
+                'sku': material.sku,
+                'unit': material.unit,
+                'total_quantity': total_qty,
+                'total_cost': total_cost,
+                'avg_unit_cost': avg_unit_cost,
+                'purchase_count': purchase_count,
+            })
+            
+            total_purchase_cost += total_cost
+            total_quantity += total_qty
+    
+    items_list.sort(key=lambda x: x['total_cost'], reverse=True)
+    
+    # Pagination
+    paginator = Paginator(items_list, 20)
+    page = request.GET.get('page')
+    items_page = paginator.get_page(page)
+    
+    context = {
+        'items': items_page,
+        'total_items': len(items_list),
+        'total_purchase_cost': total_purchase_cost,
+        'total_quantity': total_quantity,
+        'today_items': today_items,
+        'today_cost': today_cost,
+        'monthly_items': monthly_items,
+        'monthly_cost': monthly_cost,
+        'date_range': date_range,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+        'search_query': search_query,
+    }
+    
+    return render(request, 'inventory/purchase_summary.html', context)
+
+
+@login_required
+def item_transactions(request, item_id):
+    """Get purchase transactions for a specific item (AJAX) - only for selected date range"""
+    
+    if not has_inventory_access(request.user):
+        return JsonResponse({'success': False, 'error': 'Access denied'}, status=403)
+    
+    material = get_object_or_404(RawMaterial, id=item_id)
+    
+    # Get date range from request
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    date_range = request.GET.get('date_range', 'month')
+    
+    today = timezone.now().date()
+    
+    # Calculate date range same as purchase_summary
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            start_date = today - timedelta(days=30)
+            end_date = today
+    elif date_range == 'today':
+        start_date = today
+        end_date = today
+    elif date_range == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif date_range == 'last_month':
+        first_day_of_month = today.replace(day=1)
+        last_day_of_prev_month = first_day_of_month - timedelta(days=1)
+        start_date = last_day_of_prev_month.replace(day=1)
+        end_date = last_day_of_prev_month
+    else:
+        start_date = today - timedelta(days=30)
+        end_date = today
+    
+    # Get transactions
+    transactions = StockTransaction.objects.filter(
+        raw_material=material,
+        transaction_type='purchase',
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
+    ).order_by('-created_at')
+    
+    total_quantity = transactions.aggregate(total=Sum('quantity'))['total'] or 0
+    total_cost = transactions.aggregate(total=Sum('total_cost'))['total'] or 0
+    
+    transaction_list = []
+    for trans in transactions:
+        transaction_list.append({
+            'date': trans.created_at.strftime('%Y-%m-%d %H:%M'),
+            'quantity': float(trans.quantity),
+            'unit_cost': float(trans.unit_cost),
+            'total_cost': float(trans.total_cost or (trans.quantity * trans.unit_cost)),
+            'reference': trans.reference_number,
+            'notes': trans.notes,
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'transactions': transaction_list,
+        'total_quantity': float(total_quantity),
+        'total_cost': float(total_cost),
+        'purchase_count': transactions.count(),
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+        'unit': material.unit,
+    })
+
+
+# apps/inventory/views.py - Fix these functions
+
+@login_required
+def production_dispatch_report(request):
+    """Production Dispatch Report - Product vs Restaurant matrix"""
+    
+    if request.user.role not in ['admin', 'superadmin', 'store']:
+        messages.error(request, 'Access denied')
+        return redirect('common:dashboard')
+    
+    # Get filter parameters
+    date_range = request.GET.get('date_range', 'today')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    search_query = request.GET.get('search', '')
+    
+    today = timezone.now().date()
+    
+    # Calculate date range
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            date_range = 'custom'
+        except (ValueError, TypeError):
+            start_date = today
+            end_date = today
+    elif date_range == 'today':
+        start_date = today
+        end_date = today
+    elif date_range == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif date_range == 'last_month':
+        first_day_of_month = today.replace(day=1)
+        last_day_of_prev_month = first_day_of_month - timedelta(days=1)
+        start_date = last_day_of_prev_month.replace(day=1)
+        end_date = last_day_of_prev_month
+    else:
+        start_date = today
+        end_date = today
+    
+    # Get all active restaurants
+    restaurants = Restaurant.objects.filter(is_active=True)
+    
+    # Get all menu items (products)
+    products = MenuItem.objects.filter(is_available=True)
+    if search_query:
+        products = products.filter(name__icontains=search_query)
+    products = products.order_by('name')
+    
+    # Get dispatch records for date range - FIXED: Use dispatched_at instead of created_at
+    dispatches = DispatchRecord.objects.filter(
+        dispatched_at__date__gte=start_date,
+        dispatched_at__date__lte=end_date
+    ).select_related('daily_request__restaurant', 'menu_item')
+    
+    # Get production batches for date range - FIXED: Use produced_at
+    productions = ProductionBatch.objects.filter(
+        produced_at__date__gte=start_date,
+        produced_at__date__lte=end_date
+    )
+    
+    # Calculate totals
+    total_production = productions.aggregate(total=Sum('quantity_produced'))['total'] or 0
+    total_dispatched = dispatches.aggregate(total=Sum('quantity'))['total'] or 0
+    total_pending = total_production - total_dispatched
+    
+    # Prepare product data
+    products_data = []
+    restaurant_totals = {r.id: 0 for r in restaurants}
+    
+    for product in products:
+        # Dispatch data per restaurant
+        dispatch_data = {}
+        product_total = 0
+        
+        for restaurant in restaurants:
+            qty = dispatches.filter(
+                menu_item=product,
+                daily_request__restaurant=restaurant
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            dispatch_data[restaurant.id] = qty
+            product_total += qty
+            restaurant_totals[restaurant.id] += qty
+        
+        # Production for this product
+        product_production = productions.filter(
+            menu_item=product
+        ).aggregate(total=Sum('quantity_produced'))['total'] or 0
+        
+        products_data.append({
+            'id': product.id,
+            'name': product.name,
+            'sku': getattr(product, 'sku', ''),
+            'unit': getattr(product, 'unit', 'pcs'),
+            'dispatch_data': dispatch_data,
+            'total_dispatched': product_total,
+            'total_production': product_production,
+            'pending': product_production - product_total,
+        })
+    
+    context = {
+        'products': products_data,
+        'restaurants': restaurants,
+        'restaurant_totals': restaurant_totals,
+        'total_production': total_production,
+        'total_dispatched': total_dispatched,
+        'total_pending': total_pending,
+        'date_range': date_range,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+        'search_query': search_query,
+    }
+    
+    return render(request, 'inventory/production_dispatch_report.html', context)
+
+
+@login_required
+def dispatch_details(request, product_id, restaurant_id):
+    """Get dispatch details for a specific product and restaurant (AJAX)"""
+    
+    if request.user.role not in ['admin', 'superadmin', 'store']:
+        return JsonResponse({'success': False, 'error': 'Access denied'}, status=403)
+    
+    # Get date range from request
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    date_range = request.GET.get('date_range', 'today')
+    
+    today = timezone.now().date()
+    
+    # Calculate date range
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            start_date = today
+            end_date = today
+    elif date_range == 'today':
+        start_date = today
+        end_date = today
+    elif date_range == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    else:
+        start_date = today
+        end_date = today
+    
+    product = get_object_or_404(MenuItem, id=product_id)
+    restaurant = get_object_or_404(Restaurant, id=restaurant_id)
+    
+    # FIXED: Use dispatched_at instead of created_at
+    dispatches = DispatchRecord.objects.filter(
+        menu_item=product,
+        daily_request__restaurant=restaurant,
+        dispatched_at__date__gte=start_date,
+        dispatched_at__date__lte=end_date
+    ).order_by('-dispatched_at')
+    
+    total_quantity = dispatches.aggregate(total=Sum('quantity'))['total'] or 0
+    
+    dispatch_list = []
+    for dispatch in dispatches:
+        dispatch_list.append({
+            'date': dispatch.dispatched_at.strftime('%Y-%m-%d %H:%M'),
+            'quantity': float(dispatch.quantity),
+            'request_id': str(dispatch.daily_request.id) if dispatch.daily_request else None,
+            'dispatched_by': dispatch.dispatched_by.get_full_name() if dispatch.dispatched_by else None,
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'dispatches': dispatch_list,
+        'total_quantity': float(total_quantity),
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+    })
+
+
+@login_required
+def product_dispatch_details(request, product_id):
+    """Get all dispatch details for a specific product (AJAX)"""
+    
+    if request.user.role not in ['admin', 'superadmin', 'store']:
+        return JsonResponse({'success': False, 'error': 'Access denied'}, status=403)
+    
+    # Get date range from request
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    date_range = request.GET.get('date_range', 'today')
+    
+    today = timezone.now().date()
+    
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            start_date = today
+            end_date = today
+    elif date_range == 'today':
+        start_date = today
+        end_date = today
+    elif date_range == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    else:
+        start_date = today
+        end_date = today
+    
+    product = get_object_or_404(MenuItem, id=product_id)
+    
+    # FIXED: Use dispatched_at instead of created_at
+    dispatches = DispatchRecord.objects.filter(
+        menu_item=product,
+        dispatched_at__date__gte=start_date,
+        dispatched_at__date__lte=end_date
+    ).order_by('-dispatched_at').select_related('daily_request__restaurant')
+    
+    total_quantity = dispatches.aggregate(total=Sum('quantity'))['total'] or 0
+    
+    dispatch_list = []
+    for dispatch in dispatches:
+        dispatch_list.append({
+            'date': dispatch.dispatched_at.strftime('%Y-%m-%d %H:%M'),
+            'restaurant': dispatch.daily_request.restaurant.name if dispatch.daily_request else '-',
+            'quantity': float(dispatch.quantity),
+            'request_id': str(dispatch.daily_request.id) if dispatch.daily_request else None,
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'dispatches': dispatch_list,
+        'total_quantity': float(total_quantity),
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+    })

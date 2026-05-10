@@ -1,69 +1,366 @@
+<!-- templates/inventory/all_requests_list.html -->
 {% extends 'base/base.html' %}
 {% block title %}All Stock Requests{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header bg-info text-white">
-        <h5 class="mb-0">All Restaurant Stock Requests</h5>
-    </div>
-    <div class="card-body">
-        <form method="get" class="row mb-3">
-            <div class="col-md-3">
-                <input type="date" name="date" class="form-control" value="{{ selected_date|default:'' }}">
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary">Filter</button>
-                <a href="{% url 'inventory:all_requests_list' %}" class="btn btn-secondary">Reset</a>
-            </div>
-        </form>
-        
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Date</th>
-                        <th>Restaurant</th>
-                        <th>Items</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for req in requests %}
-                    <tr>
-                        <td>{{ req.request_date|date:"Y-m-d" }}</td>
-                        <td>{{ req.restaurant.name }}</td>
-                        <td>{{ req.items.count }}</td>
-                        <td>
-                            {% if req.status == 'pending' %}
-                            <span class="badge bg-warning">Pending</span>
-                            {% elif req.status == 'approved' %}
-                            <span class="badge bg-info">Approved</span>
-                            {% elif req.status == 'processing' %}
-                            <span class="badge bg-primary">Processing</span>
-                            {% elif req.status == 'completed' %}
-                            <span class="badge bg-success">Completed</span>
-                            {% else %}
-                            <span class="badge bg-secondary">{{ req.status }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'inventory:daily_request_detail' req.id %}" class="btn btn-sm btn-info">View</a>
-                            <a href="{% url 'inventory:dispatch_to_restaurant' req.id %}" class="btn btn-sm btn-success">Dispatch</a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center">No requests found</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<style>
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 1rem;
+        text-align: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        margin-bottom: 1rem;
+    }
+    .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+    }
+    .badge-pending { background: #ffc107; color: #000; }
+    .badge-approved { background: #17a2b8; color: #fff; }
+    .badge-processing { background: #007bff; color: #fff; }
+    .badge-completed { background: #28a745; color: #fff; }
+    .custom-date-field {
+        display: none;
+    }
+    .custom-date-field.show {
+        display: block;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-clipboard-list"></i> All Restaurant Stock Requests</h5>
+            <a href="{% url 'inventory:consolidated_summary' %}" class="btn btn-light btn-sm">
+                <i class="fas fa-chart-line"></i> Consolidated Summary
+            </a>
         </div>
-        
-        <div class="mt-3">
-            <a href="{% url 'inventory:consolidated_summary' %}" class="btn btn-primary">View Consolidated Summary</a>
+        <div class="card-body">
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3 mb-2">
+                    <div class="stat-card">
+                        <div class="stat-number text-primary">{{ total_requests|default:0 }}</div>
+                        <small class="text-muted">Total Requests</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="stat-card">
+                        <div class="stat-number text-warning">{{ pending_count|default:0 }}</div>
+                        <small class="text-muted">Pending</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="stat-card">
+                        <div class="stat-number text-success">{{ completed_count|default:0 }}</div>
+                        <small class="text-muted">Completed</small>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <div class="stat-card">
+                        <div class="stat-number text-info">{{ total_items|default:0 }}</div>
+                        <small class="text-muted">Total Items Requested</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="filter-section">
+                <form method="get" class="row g-3 align-items-end" id="filterForm">
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">📅 Date Range</label>
+                        <select name="date_range" class="form-select form-select-sm" id="dateRangeSelect">
+                            <option value="today" {% if date_range == 'today' %}selected{% endif %}>Today</option>
+                            <option value="yesterday" {% if date_range == 'yesterday' %}selected{% endif %}>Yesterday</option>
+                            <option value="week" {% if date_range == 'week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if date_range == 'month' %}selected{% endif %}>This Month</option>
+                            <option value="last_month" {% if date_range == 'last_month' %}selected{% endif %}>Last Month</option>
+                            <option value="custom" {% if date_range == 'custom' %}selected{% endif %}>Custom Range</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2 custom-date" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
+                        <label class="form-label small text-muted">From Date</label>
+                        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|default:'' }}" id="customStartDate">
+                    </div>
+                    
+                    <div class="col-md-2 custom-date" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
+                        <label class="form-label small text-muted">To Date</label>
+                        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|default:'' }}" id="customEndDate">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Status</label>
+                        <select name="status" class="form-select form-select-sm">
+                            <option value="">All Status</option>
+                            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                            <option value="processing" {% if status_filter == 'processing' %}selected{% endif %}>Processing</option>
+                            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">Restaurant</label>
+                        <select name="restaurant" class="form-select form-select-sm">
+                            <option value="">All Restaurants</option>
+                            {% for restaurant in restaurants %}
+                            <option value="{{ restaurant.id }}" {% if selected_restaurant == restaurant.id|stringformat:"s" %}selected{% endif %}>
+                                {{ restaurant.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                                <i class="fas fa-search"></i> Apply
+                            </button>
+                            <a href="{% url 'inventory:all_requests_list' %}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-sync-alt"></i> Reset
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Hidden fields to preserve filter values -->
+                    <input type="hidden" name="start_date_hidden" id="startDateHidden" value="">
+                    <input type="hidden" name="end_date_hidden" id="endDateHidden" value="">
+                </form>
+                
+                <!-- Date Info Alert -->
+                {% if date_range and start_date and end_date %}
+                <div class="alert alert-info mt-3 mb-0 py-2 small">
+                    <i class="fas fa-calendar-alt"></i> 
+                    Showing requests from <strong>{{ start_date }}</strong> to <strong>{{ end_date }}</strong>
+                    {% if status_filter %} | Status: <strong>{{ status_filter|title }}</strong>{% endif %}
+                    {% if selected_restaurant_name %} | Restaurant: <strong>{{ selected_restaurant_name }}</strong>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Requests Table -->
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Restaurant</th>
+                            <th>Items</th>
+                            <th>Status</th>
+                            <th>Requested By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requests %}
+                        <tr>
+                            <td>{{ req.request_date|date:"Y-m-d" }}<br>
+                                <small class="text-muted">{{ req.request_date|date:"l" }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ req.restaurant.name }}</strong>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ req.items.count }} items</span>
+                            </td>
+                            <td>
+                                {% if req.status == 'pending' %}
+                                <span class="badge bg-warning">Pending</span>
+                                {% elif req.status == 'approved' %}
+                                <span class="badge bg-info">Approved</span>
+                                {% elif req.status == 'processing' %}
+                                <span class="badge bg-primary">Processing</span>
+                                {% elif req.status == 'completed' %}
+                                <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ req.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ req.created_by.get_full_name|default:req.created_by.username|default:"-" }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'inventory:daily_request_detail' req.id %}" class="btn btn-info" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if req.status != 'completed' %}
+                                    <a href="{% url 'inventory:dispatch_to_restaurant' req.id %}" class="btn btn-success" title="Dispatch">
+                                        <i class="fas fa-truck"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                No requests found for selected period.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if requests.has_other_pages %}
+            <nav class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if requests.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ requests.previous_page_number }}&date_range={{ date_range }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&restaurant={{ selected_restaurant }}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in requests.paginator.page_range %}
+                    <li class="page-item {% if requests.number == num %}active{% endif %}">
+                        <a class="page-link" href="?page={{ num }}&date_range={{ date_range }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&restaurant={{ selected_restaurant }}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endfor %}
+
+                    {% if requests.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ requests.next_page_number }}&date_range={{ date_range }}&start_date={{ start_date }}&end_date={{ end_date }}&status={{ status_filter }}&restaurant={{ selected_restaurant }}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
         </div>
     </div>
 </div>
+
+<script>
+    // Function to set custom date values based on selection
+    function setDateValues() {
+        const dateRangeSelect = document.getElementById('dateRangeSelect');
+        const selectedValue = dateRangeSelect.value;
+        const today = new Date();
+        const customStartDate = document.getElementById('customStartDate');
+        const customEndDate = document.getElementById('customEndDate');
+        
+        // Format date as YYYY-MM-DD
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        if (selectedValue === 'today') {
+            const dateStr = formatDate(today);
+            customStartDate.value = dateStr;
+            customEndDate.value = dateStr;
+        } 
+        else if (selectedValue === 'yesterday') {
+            const yesterday = new Date(today);
+            yesterday.setDate(today.getDate() - 1);
+            const dateStr = formatDate(yesterday);
+            customStartDate.value = dateStr;
+            customEndDate.value = dateStr;
+        }
+        else if (selectedValue === 'week') {
+            const currentDate = new Date(today);
+            const dayOfWeek = currentDate.getDay();
+            const monday = new Date(currentDate);
+            const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            monday.setDate(currentDate.getDate() - daysToMonday);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            customStartDate.value = formatDate(monday);
+            customEndDate.value = formatDate(sunday);
+        }
+        else if (selectedValue === 'month') {
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            customStartDate.value = formatDate(firstDay);
+            customEndDate.value = formatDate(lastDay);
+        }
+        else if (selectedValue === 'last_month') {
+            const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+            customStartDate.value = formatDate(firstDayLastMonth);
+            customEndDate.value = formatDate(lastDayLastMonth);
+        }
+    }
+    
+    // Toggle custom date fields and submit form
+    const dateRangeSelect = document.getElementById('dateRangeSelect');
+    const customDateFields = document.querySelectorAll('.custom-date');
+    const filterForm = document.getElementById('filterForm');
+    
+    if (dateRangeSelect) {
+        // Initial setup - set date values if not custom
+        const currentRange = dateRangeSelect.value;
+        if (currentRange !== 'custom') {
+            setDateValues();
+        } else {
+            customDateFields.forEach(field => {
+                field.style.display = 'block';
+            });
+        }
+        
+        // On change - set dates and submit
+        dateRangeSelect.addEventListener('change', function() {
+            const isCustom = this.value === 'custom';
+            
+            if (!isCustom) {
+                setDateValues();
+                customDateFields.forEach(field => {
+                    field.style.display = 'none';
+                });
+                filterForm.submit();
+            } else {
+                customDateFields.forEach(field => {
+                    field.style.display = 'block';
+                });
+            }
+        });
+    }
+    
+    // Handle custom date inputs - auto submit when changed
+    const customStartDate = document.getElementById('customStartDate');
+    const customEndDate = document.getElementById('customEndDate');
+    
+    if (customStartDate && customEndDate) {
+        customStartDate.addEventListener('change', function() {
+            if (customStartDate.value && customEndDate.value) {
+                filterForm.submit();
+            }
+        });
+        
+        customEndDate.addEventListener('change', function() {
+            if (customStartDate.value && customEndDate.value) {
+                filterForm.submit();
+            }
+        });
+    }
+    
+    // Auto-hide toasts (if any)
+    document.addEventListener('DOMContentLoaded', function() {
+        var toasts = document.querySelectorAll('.toast');
+        toasts.forEach(function(toast) {
+            var bsToast = new bootstrap.Toast(toast, {
+                autohide: true,
+                delay: 3000
+            });
+            bsToast.show();
+        });
+    });
+</script>
 {% endblock %}

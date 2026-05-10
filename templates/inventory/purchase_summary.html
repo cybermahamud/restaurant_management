@@ -1,7 +1,7 @@
-<!-- templates/inventory/current_stock.html -->
+<!-- templates/inventory/purchase_summary.html -->
 {% extends 'base/base.html' %}
 {% load static %}
-{% block title %}Current Stock - Inventory List{% endblock %}
+{% block title %}Purchase Summary - Bajar Details{% endblock %}
 
 {% block content %}
 <style>
@@ -51,43 +51,11 @@
         transform: translateY(-50%);
         color: #999;
     }
-    .badge-low {
-        background: #dc3545;
-        color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-    }
-    .badge-ok {
-        background: #28a745;
-        color: white;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-    }
     .action-btn {
         padding: 4px 10px;
         border-radius: 8px;
         font-size: 12px;
         margin: 2px;
-    }
-    .btn-add-item {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 10px;
-        transition: all 0.3s;
-    }
-    .btn-add-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
-        color: white;
-    }
-    .period-summary {
-        font-size: 13px;
-        font-weight: bold;
-        color: #17a2b8;
     }
     .toast-container {
         position: fixed;
@@ -102,7 +70,7 @@
     {% if messages %}
     <div class="toast-container">
         {% for message in messages %}
-        <div class="toast align-items-center text-white bg-{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}danger{% else %}info{% endif %} border-0 show" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+        <div class="toast align-items-center text-white bg-{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}danger{% else %}info{% endif %} border-0 show" role="alert" data-bs-autohide="true" data-bs-delay="3000">
             <div class="d-flex">
                 <div class="toast-body">
                     <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
@@ -120,11 +88,11 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center flex-wrap">
                 <div>
-                    <h4><i class="fas fa-boxes"></i> Current Stock / Inventory List</h4>
-                    <p class="text-muted">All inventory items with current stock levels and period purchase summary</p>
+                    <h4><i class="fas fa-chart-line"></i> Purchase Summary / Bajar Details</h4>
+            
                 </div>
                 <div class="mt-2 mt-md-0">
-                    <a href="{% url 'inventory:create_raw_material' %}" class="btn btn-add-item">
+                    <a href="{% url 'inventory:create_raw_material' %}" class="btn btn-success">
                         <i class="fas fa-plus-circle"></i> Add New Item
                     </a>
                 </div>
@@ -132,60 +100,38 @@
         </div>
     </div>
 
-    <!-- Summary Cards -->
+    <!-- Summary Cards - Only Today and Monthly -->
     <div class="row mb-4">
-        <div class="col-md-3 mb-3">
+        <div class="col-md-6 mb-3">
             <div class="card stat-card bg-primary text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h6 class="mb-1">Total Items</h6>
-                            <h3 class="mb-0">{{ total_items|default:0 }}</h3>
-                            <small>Active products</small>
+                            <h6 class="mb-1">Today's Purchase</h6>
+                            <h3 class="mb-0">{{ today_items|default:0 }}</h3>
+                            <small>Items purchased today</small>
+                            <div class="mt-2">
+                                <strong>Cost:</strong> ${{ today_cost|floatformat:2|default:"0" }}
+                            </div>
                         </div>
-                        <i class="fas fa-cubes fa-3x opacity-50"></i>
+                        <i class="fas fa-calendar-day fa-3x opacity-50"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3 mb-3">
+        <div class="col-md-6 mb-3">
             <div class="card stat-card bg-success text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h6 class="mb-1">Total Stock Value</h6>
-                            <h3 class="mb-0">${{ total_value|floatformat:2|default:"0" }}</h3>
-                            <small>Current inventory worth</small>
+                            <h6 class="mb-1">This Month Purchase</h6>
+                            <h3 class="mb-0">{{ monthly_items|default:0 }}</h3>
+                            <small>Items purchased this month</small>
+                            <div class="mt-2">
+                                <strong>Cost:</strong> ${{ monthly_cost|floatformat:2|default:"0" }}
+                            </div>
                         </div>
-                        <i class="fas fa-dollar-sign fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="mb-1">Period Purchase</h6>
-                            <h3 class="mb-0">{{ total_period_quantity|floatformat:0|default:"0" }}</h3>
-                            <small>Total quantity purchased</small>
-                        </div>
-                        <i class="fas fa-shopping-cart fa-3x opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card stat-card bg-warning text-dark">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="mb-1">Low Stock Items</h6>
-                            <h3 class="mb-0">{{ low_stock_count|default:0 }}</h3>
-                            <small>Below minimum level</small>
-                        </div>
-                        <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                        <i class="fas fa-calendar-alt fa-3x opacity-50"></i>
                     </div>
                 </div>
             </div>
@@ -198,7 +144,7 @@
             <div class="col-md-3">
                 <label class="form-label small">🔍 Search Item</label>
                 <div class="search-box">
-                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Item name, SKU..." value="{{ search_query|default:'' }}" id="searchInput">
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Item name..." value="{{ search_query|default:'' }}" id="searchInput">
                     <i class="fas fa-search"></i>
                 </div>
             </div>
@@ -214,11 +160,11 @@
             </div>
             <div class="col-md-2 custom-date" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
                 <label class="form-label small">From Date</label>
-                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|default:'' }}">
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date|default:'' }}" id="customStartDate">
             </div>
             <div class="col-md-2 custom-date" style="display: {% if date_range == 'custom' %}block{% else %}none{% endif %};">
                 <label class="form-label small">To Date</label>
-                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|default:'' }}">
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date|default:'' }}" id="customEndDate">
             </div>
             <div class="col-md-2">
                 <label class="form-label small">&nbsp;</label>
@@ -228,19 +174,19 @@
             </div>
             <div class="col-md-1">
                 <label class="form-label small">&nbsp;</label>
-                <a href="{% url 'inventory:current_stock' %}" class="btn btn-secondary btn-sm w-100">
+                <a href="{% url 'inventory:purchase_summary' %}" class="btn btn-secondary btn-sm w-100">
                     <i class="fas fa-sync-alt"></i>
                 </a>
             </div>
         </form>
-        {% if date_range and start_date and end_date and date_range != 'custom' %}
+        
         <div class="alert alert-info mt-3 mb-0 py-2 small">
-            <i class="fas fa-calendar-alt"></i> Showing purchase summary from <strong>{{ start_date }}</strong> to <strong>{{ end_date }}</strong>
+            <i class="fas fa-calendar-alt"></i> 
+            Showing purchase summary from <strong>{{ start_date|default:"-" }}</strong> to <strong>{{ end_date|default:"-" }}</strong>
         </div>
-        {% endif %}
     </div>
 
-    <!-- Items Table -->
+    <!-- Purchase Summary Table -->
     <div class="table-container">
         <div class="table-responsive">
             <table class="table table-bordered mb-0">
@@ -249,65 +195,45 @@
                         <th>#</th>
                         <th>Item Name</th>
                         <th>Unit</th>
-                        <th>Current Stock</th>
-                        <th>Unit Cost ($)</th>
-                        <th>Total Value ($)</th>
-                        <th>Period Purchase</th>
-                        <th>Period Cost ($)</th>
-                        <th>Status</th>
+                        <th>Total Quantity</th>
+                        <th>Avg Unit Cost ($)</th>
+                        <th>Total Cost ($)</th>
+                        <th>Purchase Count</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr
-                        <td>{{ forloop.counter }}</td
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
                         <td>
                             <strong>{{ item.name }}</strong>
                             {% if item.sku %}
-                            <br><small class="text-muted">SKU: {{ item.sku }}</small>
+                            <br><small class="text-muted">{{ item.sku }}</small>
                             {% endif %}
-                        </td
-                        <td>{{ item.unit }}</td
-                        <td class="{% if item.current_stock <= item.minimum_stock %}text-danger fw-bold{% endif %}">
-                            {{ item.current_stock|floatformat:2 }}
-                        </td
-                        <td>${{ item.unit_cost|floatformat:2 }}</td
-                        <td class="text-success">${{ item.total_value|floatformat:2 }}</td
-                        <td class="period-summary">{{ item.period_quantity|floatformat:0 }}</td
-                        <td class="period-summary">${{ item.period_cost|floatformat:2 }}</td
-                        <td>
-                            {% if item.current_stock <= item.minimum_stock %}
-                                <span class="badge-low">Low Stock</span>
-                            {% else %}
-                                <span class="badge-ok">OK</span>
-                            {% endif %}
-                        </td
+                        </td>
+                        <td>{{ item.unit }}</td>
+                        <td class="text-primary fw-bold">{{ item.total_quantity|floatformat:2 }}</td>
+                        <td>${{ item.avg_unit_cost|floatformat:2 }}</td>
+                        <td class="text-success fw-bold">${{ item.total_cost|floatformat:2 }}</td>
+                        <td>{{ item.purchase_count }} times</td>
                         <td>
                             <button type="button" class="btn btn-sm btn-success action-btn" title="Add Stock" data-bs-toggle="modal" data-bs-target="#addStockModal" 
                                     onclick="openAddStockModal('{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.unit }}')">
                                 <i class="fas fa-plus"></i> Add Stock
                             </button>
-                            <a href="{% url 'inventory:stock_detail' item.id %}" class="btn btn-sm btn-info action-btn" title="Manage Item">
+                            <a href="{% url 'inventory:stock_detail' item.id %}" class="btn btn-sm btn-info action-btn" title="View Details">
                                 <i class="fas fa-chart-line"></i> Manage
                             </a>
-                            <a href="{% url 'inventory:edit_raw_material' item.id %}" class="btn btn-sm btn-warning action-btn" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            {% if can_delete %}
-                            <button type="button" class="btn btn-sm btn-danger action-btn" title="Delete" onclick="deleteItem('{{ item.id }}', '{{ item.name|escapejs }}')">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                            {% endif %}
-                        </td
-                    </tr
+                        </td>
+                    </tr>
                     {% empty %}
-                    <tr
-                        <td colspan="10" class="text-center py-4 text-muted">
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">
                             <i class="fas fa-info-circle fa-2x mb-2 d-block"></i>
-                            No items found. <a href="{% url 'inventory:create_raw_material' %}">Add your first item</a>
-                        </td
-                    </tr
+                            No purchase records found for this period.
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -335,12 +261,12 @@
 </div>
 
 <!-- Add Stock Modal -->
-<div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
+<div class="modal fade" id="addStockModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title" id="addStockModalLabel"><i class="fas fa-plus-circle"></i> Add Stock</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title"><i class="fas fa-plus-circle"></i> Add Stock / Purchase</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="post" action="" id="addStockForm">
                 {% csrf_token %}
@@ -376,7 +302,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Add Stock</button>
+                    <button type="submit" class="btn btn-success">Add Purchase</button>
                 </div>
             </form>
         </div>
@@ -385,28 +311,100 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    // Function to set custom date values based on selection
+    function setCustomDateValues() {
+        const dateRangeSelect = document.getElementById('dateRangeSelect');
+        const selectedValue = dateRangeSelect.value;
+        const today = new Date();
+        const customStartDate = document.getElementById('customStartDate');
+        const customEndDate = document.getElementById('customEndDate');
+        
+        if (selectedValue === 'today') {
+            const dateStr = today.toISOString().split('T')[0];
+            customStartDate.value = dateStr;
+            customEndDate.value = dateStr;
+        } 
+        else if (selectedValue === 'week') {
+            const day = today.getDay();
+            const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(today.setDate(diff));
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            customStartDate.value = monday.toISOString().split('T')[0];
+            customEndDate.value = sunday.toISOString().split('T')[0];
+            // Reset today
+            today.setDate(today.getDate());
+        }
+        else if (selectedValue === 'month') {
+            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+            customStartDate.value = firstDay.toISOString().split('T')[0];
+            customEndDate.value = today.toISOString().split('T')[0];
+        }
+        else if (selectedValue === 'last_month') {
+            const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+            customStartDate.value = lastMonth.toISOString().split('T')[0];
+            customEndDate.value = lastDayOfLastMonth.toISOString().split('T')[0];
+        }
+    }
+    
     // Toggle custom date fields
     const dateRangeSelect = document.getElementById('dateRangeSelect');
     const customDates = document.querySelectorAll('.custom-date');
+    const filterForm = document.getElementById('filterForm');
     
     if (dateRangeSelect) {
+        // Initial setup
+        const currentRange = dateRangeSelect.value;
+        if (currentRange !== 'custom') {
+            setCustomDateValues();
+            customDates.forEach(el => {
+                el.style.display = 'none';
+            });
+        } else {
+            customDates.forEach(el => {
+                el.style.display = 'block';
+            });
+        }
+        
+        // On change - submit form after setting dates
         dateRangeSelect.addEventListener('change', function() {
             const isCustom = this.value === 'custom';
-            customDates.forEach(el => {
-                el.style.display = isCustom ? 'block' : 'none';
-            });
+            
+            if (!isCustom) {
+                setCustomDateValues();
+                customDates.forEach(el => {
+                    el.style.display = 'none';
+                });
+                // Submit the form
+                filterForm.submit();
+            } else {
+                customDates.forEach(el => {
+                    el.style.display = 'block';
+                });
+            }
         });
     }
     
-    // Search with delay
-    let searchTimeout;
+    // Search - submit form on Enter or after typing (with delay)
     const searchInput = document.getElementById('searchInput');
+    let searchTimeout;
+    
     if (searchInput) {
-        searchInput.addEventListener('keyup', function() {
+        // Submit on Enter key
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                filterForm.submit();
+            }
+        });
+        
+        // Auto search after typing (with delay)
+        searchInput.addEventListener('input', function() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
-                document.getElementById('filterForm').submit();
-            }, 500);
+                filterForm.submit();
+            }, 800);
         });
     }
     
@@ -424,9 +422,15 @@
         
         // Set form action
         document.getElementById('addStockForm').action = `/inventory/raw-materials/${itemId}/add-stock/`;
+        
+        // Reset preview
+        const unitCostPreview = document.getElementById('unitCostPreview');
+        unitCostPreview.innerHTML = 'Unit cost will be calculated automatically';
+        unitCostPreview.style.color = '';
+        unitCostPreview.style.fontWeight = '';
     }
     
-    // Calculate and show unit cost preview
+    // Unit cost preview
     const quantityInput = document.getElementById('modalQuantity');
     const totalCostInput = document.getElementById('modalTotalCost');
     const unitCostPreview = document.getElementById('unitCostPreview');
@@ -452,22 +456,12 @@
         totalCostInput.addEventListener('input', updateUnitCostPreview);
     }
     
-    // Delete item
-    function deleteItem(itemId, itemName) {
-        Swal.fire({
-            title: 'Delete Item?',
-            html: `Are you sure you want to delete <strong>${itemName}</strong>?<br><br>
-                   <span class="text-danger">This action cannot be undone!</span>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = `/inventory/raw-materials/${itemId}/delete/`;
-            }
+    // Handle add stock form submission
+    const addStockForm = document.getElementById('addStockForm');
+    if (addStockForm) {
+        addStockForm.addEventListener('submit', function(e) {
+            // Form submits normally, page will reload and show Django messages
+            console.log('Submitting stock purchase...');
         });
     }
     
